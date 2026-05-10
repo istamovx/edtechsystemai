@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, MoreVertical, Edit2, Trash2, FileText } from "lucide-react";
+import { Plus, Search, MoreVertical, Edit2, Trash2, FileText, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
@@ -13,6 +13,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/Dialog";
 import { QuestionFormDialog } from "./QuestionFormDialog";
+import { BulkImportDialog } from "./BulkImportDialog";
+import { MathText } from "@/components/ui/MathText";
 import { DIFFICULTY_LABELS, QUESTION_TYPE_LABELS } from "@/lib/validations/exam";
 
 export function QuestionBank({ subjects, initialQuestions }: { subjects: any[]; initialQuestions: any[] }) {
@@ -22,6 +24,7 @@ export function QuestionBank({ subjects, initialQuestions }: { subjects: any[]; 
   const [subjectFilter, setSubjectFilter] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState("");
   const [formOpen, setFormOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<any | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -88,6 +91,9 @@ export function QuestionBank({ subjects, initialQuestions }: { subjects: any[]; 
 
         <div className="ml-auto flex items-center gap-2">
           <span className="text-sm text-muted-foreground">{filtered.length} / {initialQuestions.length}</span>
+          <Button variant="outline" onClick={() => setBulkOpen(true)}>
+            <Sparkles size={14} /> AI import
+          </Button>
           <Button onClick={() => { setEditTarget(null); setFormOpen(true); }}>
             <Plus size={16} /> Yangi savol
           </Button>
@@ -121,12 +127,14 @@ export function QuestionBank({ subjects, initialQuestions }: { subjects: any[]; 
                         {QUESTION_TYPE_LABELS[q.type]}
                       </span>
                     </div>
-                    <p className="text-sm font-medium line-clamp-2">{q.text}</p>
+                    <p className="text-sm font-medium line-clamp-2">
+                      <MathText>{q.text}</MathText>
+                    </p>
                     {q.options && Array.isArray(q.options) && (
                       <div className="mt-2 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
                         {q.options.slice(0, 4).map((o: any) => (
                           <div key={o.id} className={o.isCorrect ? "text-green-600 font-medium" : ""}>
-                            {o.id}) {o.text} {o.isCorrect && "✓"}
+                            {o.id}) <MathText>{o.text}</MathText> {o.isCorrect && "✓"}
                           </div>
                         ))}
                       </div>
@@ -161,6 +169,12 @@ export function QuestionBank({ subjects, initialQuestions }: { subjects: any[]; 
         question={editTarget}
         subjects={subjects}
         preselectedSubjectId={subjectFilter || undefined}
+      />
+
+      <BulkImportDialog
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        subjects={subjects}
       />
 
       <Dialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>

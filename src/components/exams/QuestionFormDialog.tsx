@@ -1,15 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { useState, useEffect, useRef } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Check } from "lucide-react";
+import { Plus, Trash2, Check, Sigma } from "lucide-react";
 import { questionCreateSchema, type QuestionCreateInput, QUESTION_TYPE_LABELS } from "@/lib/validations/exam";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/Dialog";
 import { Input, Select, Textarea, Label, FieldError } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
+import { FormulaEditor, isMathSubject } from "@/components/ui/FormulaEditor";
+import { MathText } from "@/components/ui/MathText";
 
 interface Props {
   open: boolean;
@@ -19,13 +21,21 @@ interface Props {
   subjects: any[];
 }
 
+type FormulaTarget = "text" | "explanation" | { type: "option"; index: number };
+
 export function QuestionFormDialog({ open, onOpenChange, question, preselectedSubjectId, subjects }: Props) {
   const isEdit = !!question;
   const toast = useToast();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [formulaOpen, setFormulaOpen] = useState(false);
+  const [formulaTarget, setFormulaTarget] = useState<FormulaTarget>("text");
+  const [showPreview, setShowPreview] = useState(false);
 
-  const { register, handleSubmit, control, formState: { errors }, reset, watch, setValue } = useForm<QuestionCreateInput>({
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const explanationRef = useRef<HTMLTextAreaElement>(null);
+
+  const { register, handleSubmit, control, formState: { errors }, reset, watch, setValue, getValues } = useForm<QuestionCreateInput>({
     resolver: zodResolver(questionCreateSchema),
     defaultValues: {
       subjectId: preselectedSubjectId ?? "",
@@ -46,6 +56,7 @@ export function QuestionFormDialog({ open, onOpenChange, question, preselectedSu
   const { fields, append, remove } = useFieldArray({ control, name: "options" });
   const selectedSubject = subjects.find((s) => s.id === watch("subjectId"));
   const questionType = watch("type");
+  const showFormula = isMathSubject(selectedSubject?.slug, selectedSubject?.name);
 
   useEffect(() => {
     if (question) {
@@ -79,10 +90,27 @@ export function QuestionFormDialog({ open, onOpenChange, question, preselectedSu
   const toggleCorrect = (idx: number) => {
     const opts = watch("options");
     if (questionType === "SINGLE_CHOICE" || questionType === "TRUE_FALSE") {
-      // Faqat bittasi
       setValue("options", opts.map((o, i) => ({ ...o, isCorrect: i === idx })));
     } else {
       setValue("options", opts.map((o, i) => i === idx ? { ...o, isCorrect: !o.isCorrect } : o));
+    }
+  };
+
+  const openFormula = (target: FormulaTarget) => {
+    setFormulaTarget(target);
+    setFormulaOpen(true);
+  };
+
+  const insertFormula = (latex: string) => {
+    if (formulaTarget === "text") {
+      const cur = getValues("text") || "";
+      setValue("text", cur + (cur ? " " : "") + latex);
+    } else if (formulaTarget === "explanation") {
+      const cur = getValues("explanation") || "";
+      setValue("explanation", cur + (cur ? " " : "") + latex);
+    } else if (typeof formulaTarget === "object" && formulaTarget.type === "option") {
+      const cur = getValues(`options.${formulaTarget.index}.text`) || "";
+      setValue(`options.${formulaTarget.index}.text`, cur + (cur ? " " : "") + latex);
     }
   };
 
@@ -112,135 +140,192 @@ export function QuestionFormDialog({ open, onOpenChange, question, preselectedSu
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? "Savolni tahrirlash" : "Yangi savol"}</DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{isEdit ? "Savolni tahrirlash" : "Yangi savol"}</DialogTitle>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <Label>Fan *</Label>
+                <Select {...register("subjectId")}>
+                  <option value="">Tanlang</option>
+                  {subjects.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </Select>
+                <FieldError message={errors.subjectId?.message} />
+              </div>
+
+              <div>
+                <Label>Mavzu</Label>
+                <Select {...register("topicId")}>
+                  <option value="">Tanlang (ixtiyoriy)</option>
+                  {selectedSubject?.topics?.map((t: any) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </Select>
+              </div>
+
+              <div>
+                <Label>Qiyinlik</Label>
+                <Select {...register("difficulty", { valueAsNumber: true })}>
+                  <option value="1">⭐ Juda oson</option>
+                  <option value="2">⭐⭐ Oson</option>
+                  <option value="3">⭐⭐⭐ O'rta</option>
+                  <option value="4">⭐⭐⭐⭐ Qiyin</option>
+                  <option value="5">⭐⭐⭐⭐⭐ Juda qiyin</option>
+                </Select>
+              </div>
+            </div>
+
             <div>
-              <Label>Fan *</Label>
-              <Select {...register("subjectId")}>
-                <option value="">Tanlang</option>
-                {subjects.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
+              <Label>Savol turi</Label>
+              <Select {...register("type")}>
+                {Object.entries(QUESTION_TYPE_LABELS).map(([k, v]) => (
+                  <option key={k} value={k}>{v}</option>
                 ))}
               </Select>
-              <FieldError message={errors.subjectId?.message} />
             </div>
 
             <div>
-              <Label>Mavzu</Label>
-              <Select {...register("topicId")}>
-                <option value="">Tanlang (ixtiyoriy)</option>
-                {selectedSubject?.topics?.map((t: any) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </Select>
+              <div className="flex items-center justify-between mb-1">
+                <Label>Savol matni *</Label>
+                <div className="flex items-center gap-2">
+                  {showFormula && (
+                    <button
+                      type="button"
+                      onClick={() => openFormula("text")}
+                      className="inline-flex items-center gap-1 rounded-lg border border-brand-300 bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700 hover:bg-brand-100"
+                    >
+                      <Sigma size={12} /> Formula qo'shish
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowPreview((s) => !s)}
+                    className="text-xs text-brand-600 hover:underline"
+                  >
+                    {showPreview ? "Tahrirlash" : "Ko'rinishi"}
+                  </button>
+                </div>
+              </div>
+              {showPreview ? (
+                <div className="min-h-[80px] rounded-xl border border-border bg-muted/30 p-3 text-sm">
+                  <MathText>{watch("text") || "Savol matni..."}</MathText>
+                </div>
+              ) : (
+                <Textarea
+                  {...register("text")}
+                  ref={(el) => { register("text").ref(el); textareaRef.current = el; }}
+                  placeholder={showFormula ? "Misol: $\\sqrt{16}$ ifodaning qiymatini hisoblang." : "Savol matnini kiriting..."}
+                  rows={3}
+                />
+              )}
+              <FieldError message={errors.text?.message} />
+              {showFormula && !showPreview && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  💡 Formula uchun "Formula qo'shish" tugmasini bosing yoki <code className="bg-muted px-1 rounded">$x^2$</code> kabi yozing
+                </p>
+              )}
             </div>
 
-            <div>
-              <Label>Qiyinlik</Label>
-              <Select {...register("difficulty", { valueAsNumber: true })}>
-                <option value="1">⭐ Juda oson</option>
-                <option value="2">⭐⭐ Oson</option>
-                <option value="3">⭐⭐⭐ O'rta</option>
-                <option value="4">⭐⭐⭐⭐ Qiyin</option>
-                <option value="5">⭐⭐⭐⭐⭐ Juda qiyin</option>
-              </Select>
-            </div>
-          </div>
-
-          <div>
-            <Label>Savol turi</Label>
-            <Select {...register("type")}>
-              {Object.entries(QUESTION_TYPE_LABELS).map(([k, v]) => (
-                <option key={k} value={k}>{v}</option>
-              ))}
-            </Select>
-          </div>
-
-          <div>
-            <Label>Savol matni *</Label>
-            <Textarea
-              {...register("text")}
-              placeholder="Misol: $\sqrt{16}$ ifodaning qiymatini hisoblang."
-              rows={3}
-            />
-            <FieldError message={errors.text?.message} />
-            <p className="mt-1 text-xs text-muted-foreground">
-              💡 Formula uchun: <code className="bg-muted px-1 rounded">$x^2$</code>, <code className="bg-muted px-1 rounded">$\frac&#123;a&#125;&#123;b&#125;$</code>, <code className="bg-muted px-1 rounded">$\sqrt&#123;x&#125;$</code>
-            </p>
-          </div>
-
-          {questionType !== "SHORT_TEXT" && (
-            <div>
-              <Label>Variantlar (to'g'ri javobni belgilang)</Label>
-              <div className="mt-2 space-y-2">
-                {fields.map((field, i) => {
-                  const isCorrect = watch(`options.${i}.isCorrect`);
-                  return (
-                    <div key={field.id} className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => toggleCorrect(i)}
-                        className={`grid h-9 w-9 place-items-center rounded-full border-2 transition ${
-                          isCorrect
-                            ? "border-green-500 bg-green-50 text-green-700"
-                            : "border-border hover:border-brand-300"
-                        }`}
-                      >
-                        {isCorrect ? <Check size={14} /> : <span className="text-xs">{watch(`options.${i}.id`)}</span>}
-                      </button>
-                      <Input
-                        {...register(`options.${i}.text`)}
-                        placeholder={`Variant ${watch(`options.${i}.id`)}`}
-                        className="flex-1"
-                      />
-                      <input type="hidden" {...register(`options.${i}.id`)} />
-                      {fields.length > 2 && (
+            {questionType !== "SHORT_TEXT" && (
+              <div>
+                <Label>Variantlar (to'g'ri javobni belgilang)</Label>
+                <div className="mt-2 space-y-2">
+                  {fields.map((field, i) => {
+                    const isCorrect = watch(`options.${i}.isCorrect`);
+                    return (
+                      <div key={field.id} className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => remove(i)}
-                          className="grid h-9 w-9 place-items-center rounded-full text-red-500 hover:bg-red-50"
+                          onClick={() => toggleCorrect(i)}
+                          className={`grid h-9 w-9 place-items-center rounded-full border-2 transition shrink-0 ${
+                            isCorrect
+                              ? "border-green-500 bg-green-50 text-green-700"
+                              : "border-border hover:border-brand-300"
+                          }`}
                         >
-                          <Trash2 size={14} />
+                          {isCorrect ? <Check size={14} /> : <span className="text-xs">{watch(`options.${i}.id`)}</span>}
                         </button>
-                      )}
-                    </div>
-                  );
-                })}
+                        <Input
+                          {...register(`options.${i}.text`)}
+                          placeholder={`Variant ${watch(`options.${i}.id`)}`}
+                          className="flex-1"
+                        />
+                        {showFormula && (
+                          <button
+                            type="button"
+                            onClick={() => openFormula({ type: "option", index: i })}
+                            className="grid h-9 w-9 place-items-center rounded-full border border-border hover:bg-brand-50 shrink-0"
+                            title="Formula qo'shish"
+                          >
+                            <Sigma size={14} />
+                          </button>
+                        )}
+                        <input type="hidden" {...register(`options.${i}.id`)} />
+                        {fields.length > 2 && (
+                          <button
+                            type="button"
+                            onClick={() => remove(i)}
+                            className="grid h-9 w-9 place-items-center rounded-full text-red-500 hover:bg-red-50 shrink-0"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {fields.length < 6 && questionType !== "TRUE_FALSE" && (
+                  <button
+                    type="button"
+                    onClick={() => append({ id: String.fromCharCode(65 + fields.length), text: "", isCorrect: false })}
+                    className="mt-2 inline-flex items-center gap-1.5 text-sm text-brand-600 hover:underline"
+                  >
+                    <Plus size={14} /> Variant qo'shish
+                  </button>
+                )}
               </div>
-              {fields.length < 6 && questionType !== "TRUE_FALSE" && (
-                <button
-                  type="button"
-                  onClick={() => append({ id: String.fromCharCode(65 + fields.length), text: "", isCorrect: false })}
-                  className="mt-2 inline-flex items-center gap-1.5 text-sm text-brand-600 hover:underline"
-                >
-                  <Plus size={14} /> Variant qo'shish
-                </button>
-              )}
-              <FieldError message={(errors.options as any)?.message} />
+            )}
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <Label>Tushuntirish (AI uchun foydali)</Label>
+                {showFormula && (
+                  <button
+                    type="button"
+                    onClick={() => openFormula("explanation")}
+                    className="inline-flex items-center gap-1 rounded-lg border border-brand-300 bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700 hover:bg-brand-100"
+                  >
+                    <Sigma size={12} /> Formula
+                  </button>
+                )}
+              </div>
+              <Textarea
+                {...register("explanation")}
+                placeholder="Yechilish bosqichlari yoki nima uchun shu javob to'g'ri..."
+                rows={2}
+              />
             </div>
-          )}
 
-          <div>
-            <Label>Tushuntirish (AI uchun foydali)</Label>
-            <Textarea
-              {...register("explanation")}
-              placeholder="Yechilish bosqichlari yoki nima uchun shu javob to'g'ri..."
-              rows={2}
-            />
-          </div>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Bekor qilish</Button>
+              <Button type="submit" loading={loading}>{isEdit ? "Saqlash" : "Qo'shish"}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Bekor qilish</Button>
-            <Button type="submit" loading={loading}>{isEdit ? "Saqlash" : "Qo'shish"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      <FormulaEditor
+        open={formulaOpen}
+        onOpenChange={setFormulaOpen}
+        onInsert={insertFormula}
+      />
+    </>
   );
 }

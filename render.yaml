@@ -1,13 +1,12 @@
-# Render Blueprint — bir martalik klikda hammasi yaratiladi
-# Render dashboard'da: New → Blueprint → repo'ni tanlash
-# https://render.com/docs/blueprint-spec
+# Render Blueprint — Free plan'ga moslashtirilgan
+# Bot ham web service sifatida ishlaydi (worker free'da yo'q)
 
 databases:
   - name: coursue-db
     databaseName: coursue
     user: coursue
-    plan: free            # boshlanishida bepul, keyin starter ($7/oy)
-    region: frankfurt     # Toshkentga eng yaqin Render region
+    plan: free
+    region: frankfurt
     postgresMajorVersion: "16"
 
 services:
@@ -15,16 +14,14 @@ services:
   - type: web
     name: coursue-web
     runtime: node
-    plan: free            # Free tier 750 soat/oy. Production uchun starter ($7).
+    plan: free
     region: frankfurt
     branch: main
-    autoDeploy: true      # GitHub'ga push qilinsa avtomatik deploy
-    buildCommand: |
-      npm ci
-      npx prisma generate
-      npx prisma migrate deploy
-      npm run build
-    startCommand: npm run start
+    autoDeploy: true
+    # Build vaqtida prisma generate + Next.js build (migratsiyani start'ga ko'chirdik)
+    buildCommand: npm install && npx prisma generate && npm run build
+    # Migratsiya start vaqtida ishlaydi — DB tayyor bo'lganda
+    startCommand: npx prisma migrate deploy && npm run start
     healthCheckPath: /
     envVars:
       - key: NODE_ENV
@@ -34,32 +31,30 @@ services:
           name: coursue-db
           property: connectionString
       - key: NEXTAUTH_URL
-        sync: false       # Render dashboard'da qo'lda kiritiladi: https://coursue-web.onrender.com
+        sync: false
       - key: NEXTAUTH_SECRET
-        generateValue: true   # avtomatik xavfsiz qiymat
+        generateValue: true
       - key: ANTHROPIC_API_KEY
-        sync: false       # qo'lda kiritiladi
+        sync: false
       - key: TELEGRAM_BOT_TOKEN
-        sync: false       # qo'lda kiritiladi (XAVFSIZ)
+        sync: false
       - key: TELEGRAM_BOT_INTERNAL_URL
-        value: http://coursue-bot:4000
+        value: https://coursue-bot.onrender.com
       - key: TURNSTILE_WEBHOOK_SECRET
         generateValue: true
 
-  # ========== TELEGRAM BOT (background worker) ==========
-  - type: worker
+  # ========== TELEGRAM BOT (web service — free plan'da worker yo'q) ==========
+  - type: web
     name: coursue-bot
     runtime: node
     plan: free
     region: frankfurt
     branch: main
     autoDeploy: true
-    buildCommand: |
-      cd telegram-bot
-      npm ci
-      cd ..
-      npx prisma generate
-    startCommand: cd telegram-bot && node bot.js
+    rootDir: telegram-bot
+    buildCommand: npm install
+    startCommand: node bot.js
+    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
@@ -70,4 +65,4 @@ services:
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: BOT_INTERNAL_PORT
-        value: "4000"
+        value: "10000"   # Render web service standart port

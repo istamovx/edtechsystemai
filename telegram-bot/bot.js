@@ -18,7 +18,7 @@ const WEB_API = process.env.WEB_API_URL || "http://localhost:3000";
 
 bot.start(async (ctx) => {
   return ctx.reply(
-    `Coursue platformaga xush kelibsiz! 🎉\n\n` +
+    `Edtech System AI platformaga xush kelibsiz! 🎉\n\n` +
       `Hisobingizni bog'lash uchun web saytda Settings → Telegram bo'limidan 6-xonali kodni oling va shu yerga yuboring.`,
     Markup.keyboard([["📊 Mening natijalarim", "💳 Balans"], ["📅 Dars jadvali", "ℹ️ Yordam"]]).resize()
   );
@@ -56,14 +56,14 @@ bot.hears("📅 Dars jadvali", async (ctx) => {
   ctx.reply("Dars jadvalini web saytdan ko'ring: " + WEB_API);
 });
 bot.hears("ℹ️ Yordam", async (ctx) => {
-  ctx.reply(`Coursue — o'quv markazlari uchun AI platforma.\n\nWeb sayt: ${WEB_API}\nQo'llab-quvvatlash: @your_support`);
+  ctx.reply(`Edtech System AI — o'quv markazlari uchun AI platforma.\n\nWeb sayt: ${WEB_API}\nQo'llab-quvvatlash: @your_support`);
 });
 
 // ========== HTTP API ==========
 const app = express();
 app.use(express.json());
 
-app.get("/", (req, res) => res.send("Coursue Bot — running ✅"));
+app.get("/", (req, res) => res.send("Edtech System AI Bot — running ✅"));
 app.get("/health", (req, res) => res.json({ status: "ok", uptime: process.uptime() }));
 
 // Web app serverdan xabar yuborish

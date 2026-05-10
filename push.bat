@@ -4,7 +4,7 @@ chcp 65001 >nul
 
 echo Push qilinmoqda...
 git add .
-git commit -m "fix: use prisma db push and run seed on startup - no migrations folder"
+git commit -m "feat: rebrand bot messages to Edtech System AI"
 git push origin main
 
 if errorlevel 1 (

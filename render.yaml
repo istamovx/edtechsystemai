@@ -1,5 +1,5 @@
-# Render Blueprint — Free plan'ga moslashtirilgan
-# Bot ham web service sifatida ishlaydi (worker free'da yo'q)
+# Render Blueprint — Free plan
+# Build muammolari hal qilingan: rootDir o'rniga buildCommand ichida cd
 
 databases:
   - name: coursue-db
@@ -18,12 +18,12 @@ services:
     region: frankfurt
     branch: main
     autoDeploy: true
-    # Build vaqtida prisma generate + Next.js build (migratsiyani start'ga ko'chirdik)
-    buildCommand: npm install && npx prisma generate && npm run build
-    # Migratsiya start vaqtida ishlaydi — DB tayyor bo'lganda
+    buildCommand: npm install --legacy-peer-deps && npx prisma generate && npm run build
     startCommand: npx prisma migrate deploy && npm run start
     healthCheckPath: /
     envVars:
+      - key: NODE_VERSION
+        value: "20"
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
@@ -42,8 +42,11 @@ services:
         value: https://coursue-bot.onrender.com
       - key: TURNSTILE_WEBHOOK_SECRET
         generateValue: true
+      # Build vaqtida Next.js'ga DATABASE_URL ishonarsiz bo'lsa skip qilish
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
 
-  # ========== TELEGRAM BOT (web service — free plan'da worker yo'q) ==========
+  # ========== TELEGRAM BOT ==========
   - type: web
     name: coursue-bot
     runtime: node
@@ -51,18 +54,15 @@ services:
     region: frankfurt
     branch: main
     autoDeploy: true
-    rootDir: telegram-bot
-    buildCommand: npm install
-    startCommand: node bot.js
+    buildCommand: cd telegram-bot && npm install
+    startCommand: cd telegram-bot && node bot.js
     healthCheckPath: /health
     envVars:
+      - key: NODE_VERSION
+        value: "20"
       - key: NODE_ENV
         value: production
-      - key: DATABASE_URL
-        fromDatabase:
-          name: coursue-db
-          property: connectionString
       - key: TELEGRAM_BOT_TOKEN
         sync: false
-      - key: BOT_INTERNAL_PORT
-        value: "10000"   # Render web service standart port
+      - key: WEB_API_URL
+        value: https://coursue-web.onrender.com

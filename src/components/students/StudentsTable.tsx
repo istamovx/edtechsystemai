@@ -2,11 +2,18 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Filter, MoreVertical, Edit2, Trash2, Eye } from "lucide-react";
+import { Plus, Search, MoreVertical, Edit2, Trash2, Eye } from "lucide-react";
 import { Avatar } from "@/components/layout/Sidebar";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/DropdownMenu";
 import { StudentFormDialog } from "./StudentFormDialog";
 import { formatPhone } from "@/lib/utils";
 import {
@@ -39,7 +46,6 @@ export function StudentsTable({ initialStudents, total }: Props) {
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<any | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
-  const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const filtered = useMemo(() => {
@@ -114,85 +120,74 @@ export function StudentsTable({ initialStudents, total }: Props) {
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-border bg-card">
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase text-muted-foreground bg-muted/40">
-              <tr>
-                <th className="px-4 py-3 font-medium">F.I.SH</th>
-                <th className="px-4 py-3 font-medium">Telefon</th>
-                <th className="px-4 py-3 font-medium">Universitet</th>
-                <th className="px-4 py-3 font-medium">Karta ID</th>
-                <th className="px-4 py-3 font-medium">Holat</th>
-                <th className="px-4 py-3 font-medium text-center">To'lov</th>
-                <th className="px-4 py-3 font-medium text-center">Davomat</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {filtered.map((s) => {
-                const status = STATUS_LABELS[s.status];
-                return (
-                  <tr key={s.id} className="hover:bg-muted/30">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <Avatar name={s.fullName} size={32} />
-                        <div>
-                          <div className="font-medium">{s.fullName}</div>
-                          {s.targetFaculty && <div className="text-xs text-muted-foreground">{s.targetFaculty}</div>}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">{formatPhone(s.phone)}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{s.targetUniversity || "—"}</td>
-                    <td className="px-4 py-3">
-                      {s.cardId ? <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{s.cardId}</code> : <span className="text-muted-foreground">—</span>}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${status?.cls ?? "bg-muted"}`}>
-                        {status?.label ?? s.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center text-muted-foreground">{s._count?.payments ?? 0}</td>
-                    <td className="px-4 py-3 text-center text-muted-foreground">{s._count?.attendances ?? 0}</td>
-                    <td className="px-4 py-3 relative">
-                      <button
-                        onClick={() => setActionMenuId(actionMenuId === s.id ? null : s.id)}
-                        className="grid h-8 w-8 place-items-center rounded-full hover:bg-muted"
-                      >
-                        <MoreVertical size={14} />
-                      </button>
-                      {actionMenuId === s.id && (
-                        <>
-                          <div className="fixed inset-0 z-30" onClick={() => setActionMenuId(null)} />
-                          <div className="absolute right-4 top-12 z-40 w-44 rounded-xl border border-border bg-card p-1 shadow-lg">
-                            <button
-                              onClick={() => { setEditTarget(s); setFormOpen(true); setActionMenuId(null); }}
-                              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-muted"
-                            >
-                              <Edit2 size={14} /> Tahrirlash
-                            </button>
-                            <button
-                              onClick={() => { setActionMenuId(null); /* TODO: navigate to detail */ }}
-                              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-muted"
-                            >
-                              <Eye size={14} /> Profil
-                            </button>
-                            <div className="my-1 h-px bg-border" />
-                            <button
-                              onClick={() => { setDeleteTarget(s); setActionMenuId(null); }}
-                              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
-                            >
-                              <Trash2 size={14} /> O'chirish
-                            </button>
+        <div className="rounded-2xl border border-border bg-card">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs uppercase text-muted-foreground bg-muted/40">
+                <tr>
+                  <th className="px-4 py-3 font-medium rounded-tl-2xl">F.I.SH</th>
+                  <th className="px-4 py-3 font-medium">Telefon</th>
+                  <th className="px-4 py-3 font-medium">Universitet</th>
+                  <th className="px-4 py-3 font-medium">Karta ID</th>
+                  <th className="px-4 py-3 font-medium">Holat</th>
+                  <th className="px-4 py-3 font-medium text-center">To'lov</th>
+                  <th className="px-4 py-3 font-medium text-center">Davomat</th>
+                  <th className="px-4 py-3 rounded-tr-2xl"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filtered.map((s) => {
+                  const status = STATUS_LABELS[s.status];
+                  return (
+                    <tr key={s.id} className="hover:bg-muted/30">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <Avatar name={s.fullName} size={32} />
+                          <div>
+                            <div className="font-medium">{s.fullName}</div>
+                            {s.targetFaculty && <div className="text-xs text-muted-foreground">{s.targetFaculty}</div>}
                           </div>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">{formatPhone(s.phone)}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{s.targetUniversity || "—"}</td>
+                      <td className="px-4 py-3">
+                        {s.cardId ? <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{s.cardId}</code> : <span className="text-muted-foreground">—</span>}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${status?.cls ?? "bg-muted"}`}>
+                          {status?.label ?? s.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center text-muted-foreground">{s._count?.payments ?? 0}</td>
+                      <td className="px-4 py-3 text-center text-muted-foreground">{s._count?.attendances ?? 0}</td>
+                      <td className="px-4 py-3">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="grid h-8 w-8 place-items-center rounded-full hover:bg-muted">
+                              <MoreVertical size={14} />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => { setEditTarget(s); setFormOpen(true); }}>
+                              <Edit2 size={14} /> Tahrirlash
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => router.push(`/users/${s.id}`)}>
+                              <Eye size={14} /> Profilini ko'rish
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem destructive onClick={() => setDeleteTarget(s)}>
+                              <Trash2 size={14} /> O'chirish
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

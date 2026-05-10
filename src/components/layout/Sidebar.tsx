@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogOut, Sparkles } from "lucide-react";
+import { signOut } from "next-auth/react";
 import { ALL_MODULES, getEnabledModules } from "@/lib/modules";
 import { cn, initials } from "@/lib/utils";
 
@@ -25,7 +26,7 @@ export function Sidebar({ enabledModules, user, friends = [] }: SidebarProps) {
         <div className="grid h-9 w-9 place-items-center rounded-xl bg-brand-600 text-white">
           <Sparkles size={16} />
         </div>
-        <span className="text-base font-semibold">Coursue</span>
+        <span className="text-base font-semibold">Edtech AI</span>
       </Link>
 
       <nav className="mt-8 flex-1 overflow-y-auto">
@@ -63,9 +64,12 @@ export function Sidebar({ enabledModules, user, friends = [] }: SidebarProps) {
           {settings.map((m) => (
             <NavLink key={m.key} href={m.href} icon={<m.icon size={18} />} label={m.label} active={pathname.startsWith(m.href)} />
           ))}
-          <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-red-500 hover:bg-red-50">
+          <button
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-red-500 hover:bg-red-50"
+          >
             <LogOut size={18} />
-            Logout
+            Chiqish
           </button>
         </NavGroup>
       </div>

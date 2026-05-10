@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, MoreVertical, Edit2, Trash2, Users } from "lucide-react";
+import { Plus, Search, MoreVertical, Edit2, Trash2, Users, Eye } from "lucide-react";
 import { Avatar } from "@/components/layout/Sidebar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -136,6 +136,9 @@ export function ParentsTable({ initialParents }: { initialParents: any[] }) {
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => router.push(`/users/parents/${p.id}`)}>
+                            <Eye size={14} /> Profilini ko'rish
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => { setEditTarget(p); setFormOpen(true); }}>
                             <Edit2 size={14} /> Tahrirlash
                           </DropdownMenuItem>

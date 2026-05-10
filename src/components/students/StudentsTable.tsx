@@ -172,7 +172,7 @@ export function StudentsTable({ initialStudents, total }: Props) {
                             <DropdownMenuItem onClick={() => { setEditTarget(s); setFormOpen(true); }}>
                               <Edit2 size={14} /> Tahrirlash
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => router.push(`/users/${s.id}`)}>
+                            <DropdownMenuItem onClick={() => router.push(`/users/students/${s.id}`)}>
                               <Eye size={14} /> Profilini ko'rish
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />

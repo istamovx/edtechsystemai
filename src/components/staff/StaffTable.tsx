@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, MoreVertical, Edit2, Trash2, ShieldCheck, ShieldX, UserCog } from "lucide-react";
+import { Plus, Search, MoreVertical, Edit2, Trash2, ShieldCheck, ShieldX, UserCog, Eye } from "lucide-react";
 import { Avatar } from "@/components/layout/Sidebar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -165,6 +165,9 @@ export function StaffTable({ initialStaff, currentUserId }: { initialStaff: any[
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => router.push(`/users/staff/${s.id}`)}>
+                              <Eye size={14} /> Profilini ko'rish
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => { setEditTarget(s); setFormOpen(true); }}>
                               <Edit2 size={14} /> Tahrirlash
                             </DropdownMenuItem>

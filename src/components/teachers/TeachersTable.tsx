@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, MoreVertical, Edit2, Trash2, GraduationCap } from "lucide-react";
+import { Plus, Search, MoreVertical, Edit2, Trash2, GraduationCap, Eye } from "lucide-react";
 import { Avatar } from "@/components/layout/Sidebar";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
@@ -178,6 +178,9 @@ export function TeachersTable({ initialTeachers, total, forceMentor }: Props) {
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => router.push(`/users/${forceMentor ? "mentors" : "teachers"}/${t.id}`)}>
+                              <Eye size={14} /> Profilini ko'rish
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => { setEditTarget(t); setFormOpen(true); }}>
                               <Edit2 size={14} /> Tahrirlash
                             </DropdownMenuItem>

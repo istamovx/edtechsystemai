@@ -4,7 +4,7 @@ chcp 65001 >nul
 
 echo Push qilinmoqda...
 git add .
-git commit -m "feat: complete Users module - Teachers, Mentors, Staff, Parents tabs with full CRUD"
+git commit -m "feat(ui): full-bleed dashboard layout, 80px sidebar header and main header"
 git push origin main
 
 if errorlevel 1 (

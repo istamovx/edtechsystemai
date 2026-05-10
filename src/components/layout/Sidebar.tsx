@@ -10,10 +10,9 @@ import { cn, initials } from "@/lib/utils";
 interface SidebarProps {
   enabledModules: string[];
   user: { name: string; role: string; avatar?: string | null };
-  friends?: { name: string; label: string; avatar?: string | null }[];
 }
 
-export function Sidebar({ enabledModules, user, friends = [] }: SidebarProps) {
+export function Sidebar({ enabledModules, user }: SidebarProps) {
   const pathname = usePathname();
   const modules = getEnabledModules(enabledModules);
   const overview = modules.filter((m) => m.group === "core" && m.key !== "settings");
@@ -21,48 +20,38 @@ export function Sidebar({ enabledModules, user, friends = [] }: SidebarProps) {
   const extras = modules.filter((m) => m.group !== "core");
 
   return (
-    <aside className="flex h-screen w-64 flex-col bg-card p-5">
-      <Link href="/dashboard" className="flex items-center gap-2">
+    <aside className="flex h-screen w-64 flex-col border-r border-border bg-card sticky top-0 self-start">
+      {/* Logo header — 80px height */}
+      <Link
+        href="/dashboard"
+        className="flex h-20 items-center gap-2 border-b border-border px-5 shrink-0"
+      >
         <div className="grid h-9 w-9 place-items-center rounded-xl bg-brand-600 text-white">
           <Sparkles size={16} />
         </div>
         <span className="text-base font-semibold">Edtech AI</span>
       </Link>
 
-      <nav className="mt-8 flex-1 overflow-y-auto">
-        <NavGroup title="Overview">
+      <nav className="flex-1 overflow-y-auto p-5">
+        <NavGroup title="Asosiy">
           {overview.map((m) => (
-            <NavLink key={m.key} href={m.href} icon={<m.icon size={18} />} label={m.label} active={pathname.startsWith(m.href)} />
+            <NavLink key={m.key} href={m.href} icon={<m.icon size={18} />} label={m.label} active={isActive(pathname, m.href)} />
           ))}
         </NavGroup>
 
         {extras.length > 0 && (
           <NavGroup title="Modullar">
             {extras.map((m) => (
-              <NavLink key={m.key} href={m.href} icon={<m.icon size={18} />} label={m.label} active={pathname.startsWith(m.href)} />
-            ))}
-          </NavGroup>
-        )}
-
-        {friends.length > 0 && (
-          <NavGroup title="Friends">
-            {friends.map((f) => (
-              <div key={f.name} className="flex items-center gap-3 rounded-xl px-3 py-2">
-                <Avatar name={f.name} src={f.avatar} size={32} />
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-medium">{f.name}</div>
-                  <div className="truncate text-xs text-muted-foreground">{f.label}</div>
-                </div>
-              </div>
+              <NavLink key={m.key} href={m.href} icon={<m.icon size={18} />} label={m.label} active={isActive(pathname, m.href)} />
             ))}
           </NavGroup>
         )}
       </nav>
 
-      <div className="border-t border-border pt-3">
-        <NavGroup title="Settings">
+      <div className="border-t border-border p-5 shrink-0">
+        <NavGroup title="Sozlamalar">
           {settings.map((m) => (
-            <NavLink key={m.key} href={m.href} icon={<m.icon size={18} />} label={m.label} active={pathname.startsWith(m.href)} />
+            <NavLink key={m.key} href={m.href} icon={<m.icon size={18} />} label={m.label} active={isActive(pathname, m.href)} />
           ))}
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
@@ -75,6 +64,11 @@ export function Sidebar({ enabledModules, user, friends = [] }: SidebarProps) {
       </div>
     </aside>
   );
+}
+
+function isActive(pathname: string, href: string): boolean {
+  if (href === "/dashboard") return pathname === "/dashboard";
+  return pathname === href || pathname.startsWith(href + "/");
 }
 
 function NavGroup({ title, children }: { title: string; children: React.ReactNode }) {

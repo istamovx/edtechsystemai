@@ -1,0 +1,664 @@
+// Coursue EdTech Platform — Prisma schema
+// Multi-tenant SaaS strategiyasi: bitta DB + tenantId ustun har bir jadvalda
+// O'quv markazlari uchun keng qamrovli ma'lumotlar modeli
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// TENANT (O'quv markazi) — multi-tenancy ildizi
+// ============================================================
+model Tenant {
+  id              String   @id @default(cuid())
+  name            String
+  slug            String   @unique // markaz1.coursue.uz uchun
+  logo            String?
+  phone           String?
+  address         String?
+  email           String?
+
+  // Obuna va modullar
+  subscriptionPlan SubscriptionPlan @default(FREE)
+  subscriptionEnds DateTime?
+  enabledModules   String[]         @default(["dashboard", "users", "payments", "exams"])
+
+  // Sozlamalar
+  timezone        String   @default("Asia/Tashkent")
+  language        String   @default("uz")
+  theme           String   @default("light")
+
+  // Munosabatlar
+  users           User[]
+  students        Student[]
+  teachers        Teacher[]
+  parents         Parent[]
+  groups          Group[]
+  courses         Course[]
+  payments        Payment[]
+  attendances     Attendance[]
+  exams           Exam[]
+  examQuestions   ExamQuestion[]
+  examAttempts    ExamAttempt[]
+  subjects        Subject[]
+  lessons         Lesson[]
+  homeworks       Homework[]
+  branches        Branch[]
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+  leads           Lead[]
+  certificates    Certificate[]
+  turnstileEvents TurnstileEvent[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([slug])
+}
+
+enum SubscriptionPlan {
+  FREE
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+// ============================================================
+// FOYDALANUVCHILAR (auth uchun universal jadval)
+// ============================================================
+model User {
+  id           String    @id @default(cuid())
+  tenantId     String?   // null bo'lsa SUPER_ADMIN (platforma egasi)
+  tenant       Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  email        String?   @unique
+  phone        String?   @unique
+  password     String?
+  name         String
+  avatar       String?
+  role         UserRole
+
+  telegramId   String?   @unique
+  telegramUser String?
+
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+
+  // Bog'liq profil yozuvlari (rolga qarab biri to'ldiriladi)
+  studentProfile Student?
+  teacherProfile Teacher?
+  parentProfile  Parent?
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sessions     Session[]
+  auditLogs    AuditLog[]
+
+  @@index([tenantId, role])
+  @@index([telegramId])
+}
+
+enum UserRole {
+  SUPER_ADMIN     // Platforma egasi
+  TENANT_OWNER    // O'quv markazi egasi
+  ADMIN           // Markaz administratori
+  TEACHER         // O'qituvchi
+  MENTOR          // Mentor
+  STUDENT         // O'quvchi
+  PARENT          // Ota-ona
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expires      DateTime
+}
+
+// ============================================================
+// O'QUVCHILAR
+// ============================================================
+model Student {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId      String?  @unique
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  fullName    String
+  phone       String?
+  birthDate   DateTime?
+  gender      Gender?
+  passportSeries String?
+  address     String?
+
+  // O'qishga qiziqishlar (DTM)
+  targetUniversity String?
+  targetFaculty    String?
+  examScore        Float?     // oxirgi DTM/imtihon bali
+
+  // Aloqalar
+  parentId    String?
+  parent      Parent?  @relation(fields: [parentId], references: [id])
+  branchId    String?
+  branch      Branch?  @relation(fields: [branchId], references: [id])
+
+  // RFID/QR turniket uchun
+  cardId      String?  @unique
+
+  // Munosabatlar
+  groups       GroupMember[]
+  payments     Payment[]
+  attendances  Attendance[]
+  examAttempts ExamAttempt[]
+  homeworkSubmissions HomeworkSubmission[]
+  certificates Certificate[]
+  turnstileEvents TurnstileEvent[]
+
+  status      StudentStatus @default(ACTIVE)
+  notes       String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId, status])
+  @@index([cardId])
+}
+
+enum StudentStatus {
+  LEAD          // Hali o'qishga kelmagan, qiziqqan
+  ACTIVE        // O'qiyapti
+  PAUSED        // Vaqtinchalik to'xtatilgan
+  GRADUATED     // Tugatgan
+  DROPPED       // Tashlab ketgan
+}
+
+enum Gender { MALE FEMALE }
+
+// ============================================================
+// O'QITUVCHILAR / MENTORLAR
+// ============================================================
+model Teacher {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId      String?  @unique
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  fullName    String
+  phone       String?
+  birthDate   DateTime?
+
+  // Mutaxassislik
+  subjects    String[]   // ["Matematika", "Fizika"]
+  bio         String?
+  photo       String?
+  isMentor    Boolean    @default(false)
+
+  // Maosh sozlamalari
+  salaryType  SalaryType @default(HOURLY)
+  salaryRate  Decimal?   @db.Decimal(12, 2)  // soatlik yoki oylik stavka
+  bonusPercent Decimal?  @db.Decimal(5, 2)   // o'quvchidan tushgan to'lov %i
+
+  cardId      String?    @unique
+
+  groups      Group[]    @relation("GroupTeacher")
+  lessons     Lesson[]
+  attendancesMarked Attendance[] @relation("MarkedBy")
+
+  status      TeacherStatus @default(ACTIVE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId, status])
+}
+
+enum TeacherStatus { ACTIVE INACTIVE FIRED }
+enum SalaryType { HOURLY MONTHLY PERCENT }
+
+// ============================================================
+// OTA-ONALAR
+// ============================================================
+model Parent {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String?  @unique
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  fullName  String
+  phone     String
+  telegramId String?
+
+  children  Student[]
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+// ============================================================
+// FILIALLAR
+// ============================================================
+model Branch {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  address   String?
+  phone     String?
+  students  Student[]
+  groups    Group[]
+  rooms     Room[]
+  createdAt DateTime @default(now())
+}
+
+model Room {
+  id        String   @id @default(cuid())
+  branchId  String
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  name      String
+  capacity  Int?
+  lessons   Lesson[]
+}
+
+// ============================================================
+// KURSLAR VA GURUHLAR
+// ============================================================
+model Course {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  duration    Int?       // oylar
+  price       Decimal    @db.Decimal(12, 2)
+  groups      Group[]
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+model Group {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  courseId    String?
+  course      Course?  @relation(fields: [courseId], references: [id])
+  teacherId   String?
+  teacher     Teacher? @relation("GroupTeacher", fields: [teacherId], references: [id])
+  branchId    String?
+  branch      Branch?  @relation(fields: [branchId], references: [id])
+  startDate   DateTime?
+  endDate     DateTime?
+  schedule    Json?     // dars jadvali (haftaning kunlari, soatlar)
+  members     GroupMember[]
+  lessons     Lesson[]
+  homeworks   Homework[]
+  status      GroupStatus @default(ACTIVE)
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, status])
+}
+
+enum GroupStatus { ACTIVE COMPLETED CANCELLED }
+
+model GroupMember {
+  id        String   @id @default(cuid())
+  groupId   String
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  joinedAt  DateTime @default(now())
+  leftAt    DateTime?
+
+  @@unique([groupId, studentId])
+}
+
+// ============================================================
+// DARSLAR (jadval + materiallar)
+// ============================================================
+model Lesson {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  groupId     String
+  group       Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  teacherId   String?
+  teacher     Teacher? @relation(fields: [teacherId], references: [id])
+  roomId      String?
+  room        Room?    @relation(fields: [roomId], references: [id])
+  topic       String
+  description String?
+  startsAt    DateTime
+  endsAt      DateTime
+  attendances Attendance[]
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, startsAt])
+}
+
+// ============================================================
+// DAVOMAT (qo'lda + turniket)
+// ============================================================
+model Attendance {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  studentId  String
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  lessonId   String?
+  lesson     Lesson?  @relation(fields: [lessonId], references: [id])
+  markedById String?
+  markedBy   Teacher? @relation("MarkedBy", fields: [markedById], references: [id])
+
+  status     AttendanceStatus
+  source     AttendanceSource @default(MANUAL)
+  enterAt    DateTime?
+  exitAt     DateTime?
+  note       String?
+
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, studentId, createdAt])
+}
+
+enum AttendanceStatus { PRESENT ABSENT LATE EXCUSED }
+enum AttendanceSource { MANUAL TURNSTILE TELEGRAM QR_CODE }
+
+// Turniket xom hodisalar (audit + qayta ishlash uchun)
+model TurnstileEvent {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  studentId  String?
+  student    Student? @relation(fields: [studentId], references: [id])
+  cardId     String
+  deviceId   String?
+  direction  TurnstileDirection
+  rawPayload Json?
+  occurredAt DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, occurredAt])
+}
+
+enum TurnstileDirection { IN OUT }
+
+// ============================================================
+// TO'LOVLAR
+// ============================================================
+model Payment {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  studentId  String
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  amount     Decimal  @db.Decimal(12, 2)
+  currency   String   @default("UZS")
+  method     PaymentMethod
+  status     PaymentStatus @default(PAID)
+  forMonth   String?  // "2026-05"
+  note       String?
+
+  // Tashqi to'lov tizimlari uchun
+  externalId String?
+  receipt    String?
+
+  createdAt  DateTime @default(now())
+  paidAt     DateTime?
+
+  @@index([tenantId, studentId, createdAt])
+  @@index([status])
+}
+
+enum PaymentMethod { CASH CARD CLICK PAYME BANK_TRANSFER OTHER }
+enum PaymentStatus { PENDING PAID FAILED REFUNDED }
+
+// ============================================================
+// IMTIHON MODULI
+// ============================================================
+model Subject {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String   // "Matematika", "Fizika", "Ona-tili" ...
+  slug      String
+  topics    Topic[]
+  questions ExamQuestion[]
+
+  @@unique([tenantId, slug])
+}
+
+model Topic {
+  id        String   @id @default(cuid())
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  name      String
+  parentId  String?
+  parent    Topic?   @relation("TopicTree", fields: [parentId], references: [id])
+  children  Topic[]  @relation("TopicTree")
+  questions ExamQuestion[]
+}
+
+model ExamQuestion {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  subjectId   String
+  subject     Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  topicId     String?
+  topic       Topic?   @relation(fields: [topicId], references: [id])
+
+  // Savol matni — KaTeX/MathLive formulalarini qo'llab-quvvatlaydi
+  // Format: "What is $\\sqrt{16}$?"
+  text        String
+  imageUrl    String?
+  type        QuestionType @default(SINGLE_CHOICE)
+  difficulty  Int          @default(1) // 1-5
+
+  // Variantlar JSON: [{ id, text, isCorrect, explanation }]
+  options     Json
+  correctAnswer Json?       // matn javob savollar uchun
+  explanation String?       // umumiy tushuntirish (AI uchun)
+
+  exams       ExamQuestionLink[]
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, subjectId])
+}
+
+enum QuestionType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  SHORT_TEXT
+  LONG_TEXT
+  MATCHING
+}
+
+model Exam {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  durationMin Int      @default(60)
+  totalScore  Int      @default(100)
+  isPublished Boolean  @default(false)
+  startsAt    DateTime?
+  endsAt      DateTime?
+
+  // O'quvchi natijasini boshqalarga ko'rsatishmi
+  showResults Boolean  @default(true)
+
+  questions   ExamQuestionLink[]
+  attempts    ExamAttempt[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model ExamQuestionLink {
+  id         String   @id @default(cuid())
+  examId     String
+  exam       Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  questionId String
+  question   ExamQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  order      Int
+  points     Int      @default(1)
+
+  @@unique([examId, questionId])
+}
+
+model ExamAttempt {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  examId     String
+  exam       Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  studentId  String
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  startedAt  DateTime @default(now())
+  submittedAt DateTime?
+  score      Float?
+  maxScore   Float?
+  percent    Float?
+
+  // Har bir savolga javoblar JSON: [{ questionId, answer, isCorrect, points }]
+  answers    Json
+
+  // AI tahlil natijasi
+  aiAnalysis Json?
+  // { weakTopics: [...], recommendedUniversities: [...], explanations: [{ qId, why }] }
+
+  status     AttemptStatus @default(IN_PROGRESS)
+
+  @@index([tenantId, studentId])
+}
+
+enum AttemptStatus { IN_PROGRESS SUBMITTED GRADED }
+
+// ============================================================
+// UY VAZIFALARI
+// ============================================================
+model Homework {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  groupId     String
+  group       Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  dueAt       DateTime?
+  attachments String[]
+  submissions HomeworkSubmission[]
+  createdAt   DateTime @default(now())
+}
+
+model HomeworkSubmission {
+  id          String   @id @default(cuid())
+  homeworkId  String
+  homework    Homework @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  content     String?
+  attachments String[]
+  score       Float?
+  feedback    String?
+  submittedAt DateTime @default(now())
+
+  @@unique([homeworkId, studentId])
+}
+
+// ============================================================
+// CRM — LEADS (yangi qiziquvchilar)
+// ============================================================
+model Lead {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  fullName     String
+  phone        String
+  source       String?  // "Instagram", "Telegram", "Tanish-bilish" ...
+  interestedIn String?
+  status       LeadStatus @default(NEW)
+  note         String?
+  assignedTo   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([tenantId, status])
+}
+
+enum LeadStatus { NEW CONTACTED INTERESTED ENROLLED LOST }
+
+// ============================================================
+// SERTIFIKATLAR
+// ============================================================
+model Certificate {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  studentId  String
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  courseName String
+  issuedAt   DateTime @default(now())
+  qrCode     String   @unique
+  pdfUrl     String?
+}
+
+// ============================================================
+// XABARNOMALAR
+// ============================================================
+model Notification {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId     String?
+  type       NotificationType
+  title      String
+  message    String
+  data       Json?
+  channel    NotificationChannel
+  readAt     DateTime?
+  sentAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, userId])
+}
+
+enum NotificationType { INFO WARNING SUCCESS ERROR PAYMENT_REMINDER ATTENDANCE EXAM_RESULT }
+enum NotificationChannel { IN_APP TELEGRAM SMS EMAIL }
+
+// ============================================================
+// AUDIT LOG (kim nima o'zgartirgani)
+// ============================================================
+model AuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String?
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id])
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String   // "CREATE_STUDENT", "DELETE_PAYMENT" ...
+  entity     String   // "Student", "Payment" ...
+  entityId   String?
+  changes    Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+}

@@ -1,0 +1,19 @@
+{
+  "name": "coursue-telegram-bot",
+  "version": "0.1.0",
+  "description": "Coursue platforma uchun Telegram bot servisi",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js",
+    "dev": "nodemon bot.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "telegraf": "^4.16.3",
+    "@prisma/client": "^5.20.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  }
+}

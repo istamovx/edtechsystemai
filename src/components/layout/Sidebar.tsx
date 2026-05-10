@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, Sparkles } from "lucide-react";
-import { signOut } from "next-auth/react";
+import { Sparkles } from "lucide-react";
 import { ALL_MODULES, getEnabledModules } from "@/lib/modules";
 import { cn, initials } from "@/lib/utils";
 
@@ -12,19 +11,18 @@ interface SidebarProps {
   user: { name: string; role: string; avatar?: string | null };
 }
 
-export function Sidebar({ enabledModules, user }: SidebarProps) {
+export function Sidebar({ enabledModules }: SidebarProps) {
   const pathname = usePathname();
   const modules = getEnabledModules(enabledModules);
   const overview = modules.filter((m) => m.group === "core" && m.key !== "settings");
-  const settings = modules.filter((m) => m.key === "settings");
   const extras = modules.filter((m) => m.group !== "core");
 
   return (
     <aside className="flex h-screen w-64 flex-col border-r border-border bg-card sticky top-0 self-start">
-      {/* Logo header — 80px height */}
+      {/* Logo header — 72px height (Header bilan moslangan) */}
       <Link
         href="/dashboard"
-        className="flex h-20 items-center gap-2 border-b border-border px-5 shrink-0"
+        className="flex h-[72px] items-center gap-2 border-b border-border px-5 shrink-0"
       >
         <div className="grid h-9 w-9 place-items-center rounded-xl bg-brand-600 text-white">
           <Sparkles size={16} />
@@ -47,21 +45,6 @@ export function Sidebar({ enabledModules, user }: SidebarProps) {
           </NavGroup>
         )}
       </nav>
-
-      <div className="border-t border-border p-5 shrink-0">
-        <NavGroup title="Sozlamalar">
-          {settings.map((m) => (
-            <NavLink key={m.key} href={m.href} icon={<m.icon size={18} />} label={m.label} active={isActive(pathname, m.href)} />
-          ))}
-          <button
-            onClick={() => signOut({ callbackUrl: "/login" })}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-red-500 hover:bg-red-50"
-          >
-            <LogOut size={18} />
-            Chiqish
-          </button>
-        </NavGroup>
-      </div>
     </aside>
   );
 }

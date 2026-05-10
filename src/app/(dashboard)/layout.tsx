@@ -7,13 +7,30 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const user = await requireUser();
 
   let enabledModules: string[] = ["dashboard", "users", "payments", "exams", "reports", "settings"];
+  let tenant: { name: string; id: string; ownerName?: string | null } | null = null;
 
   if (user.tenantId) {
-    const tenant = await prisma.tenant.findUnique({
+    const t = await prisma.tenant.findUnique({
       where: { id: user.tenantId },
-      select: { enabledModules: true },
+      select: {
+        id: true,
+        name: true,
+        enabledModules: true,
+        users: {
+          where: { role: "TENANT_OWNER" },
+          select: { name: true },
+          take: 1,
+        },
+      },
     });
-    if (tenant) enabledModules = tenant.enabledModules;
+    if (t) {
+      enabledModules = t.enabledModules;
+      tenant = {
+        id: t.id,
+        name: t.name,
+        ownerName: t.users[0]?.name ?? null,
+      };
+    }
   }
 
   const userInfo = {
@@ -26,7 +43,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <div className="flex min-h-screen bg-background">
       <Sidebar enabledModules={enabledModules} user={userInfo} />
       <div className="flex flex-1 flex-col min-w-0">
-        <Header user={userInfo} />
+        <Header user={userInfo} tenant={tenant} />
         <main className="flex-1 overflow-x-hidden bg-[#f5f5f7] p-6">{children}</main>
       </div>
     </div>

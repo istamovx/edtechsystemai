@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { requireTenant, canManageUsers } from "@/lib/session";
 import { studentCreateSchema } from "@/lib/validations/student";
 
-// GET /api/students?q=search&status=ACTIVE&page=1
 export async function GET(req: Request) {
   const user = await requireTenant();
   const { searchParams } = new URL(req.url);
@@ -40,7 +39,6 @@ export async function GET(req: Request) {
   return NextResponse.json({ data: students, total, page, limit });
 }
 
-// POST /api/students
 export async function POST(req: Request) {
   const user = await requireTenant();
   if (!canManageUsers(user.role)) {
@@ -52,46 +50,60 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Validatsiya xatosi", details: parsed.error.flatten() }, { status: 400 });
   }
-  const data = parsed.data;
-
-  // Empty stringlarni undefined ga
-  const cleanData = Object.fromEntries(
-    Object.entries(data).map(([k, v]) => [k, v === "" ? undefined : v])
-  );
+  const d = parsed.data;
 
   try {
-    const student = await prisma.student.create({
-      data: {
-        tenantId: user.tenantId,
-        fullName: cleanData.fullName as string,
-        phone: cleanData.phone as string | undefined,
-        birthDate: cleanData.birthDate ? new Date(cleanData.birthDate as string) : undefined,
-        gender: cleanData.gender as any,
-        passportSeries: cleanData.passportSeries as string | undefined,
-        address: cleanData.address as string | undefined,
-        targetUniversity: cleanData.targetUniversity as string | undefined,
-        targetFaculty: cleanData.targetFaculty as string | undefined,
-        cardId: cleanData.cardId as string | undefined,
-        parentId: cleanData.parentId as string | undefined,
-        branchId: cleanData.branchId as string | undefined,
-        status: (cleanData.status as any) ?? "ACTIVE",
-        notes: cleanData.notes as string | undefined,
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      // Inline ota-ona yaratish (agar ma'lumotlar berilgan bo'lsa)
+      let parentId: string | undefined = d.parentId || undefined;
+
+      if (!parentId && d.newParentName && d.newParentPhone) {
+        const newParent = await tx.parent.create({
+          data: {
+            tenantId: user.tenantId,
+            fullName: d.newParentName,
+            phone: d.newParentPhone,
+            telegramId: d.newParentTelegram || undefined,
+          },
+        });
+        parentId = newParent.id;
+      }
+
+      const student = await tx.student.create({
+        data: {
+          tenantId: user.tenantId,
+          fullName: d.fullName,
+          phone: d.phone || undefined,
+          birthDate: d.birthDate ? new Date(d.birthDate) : undefined,
+          gender: d.gender as any,
+          passportSeries: d.passportSeries || undefined,
+          address: d.address || undefined,
+          targetUniversity: d.targetUniversity || undefined,
+          targetFaculty: d.targetFaculty || undefined,
+          cardId: d.cardId || undefined,
+          parentId,
+          branchId: d.branchId || undefined,
+          status: d.status,
+          notes: d.notes || undefined,
+        },
+        include: { parent: true },
+      });
+
+      return student;
     });
 
-    // Audit log
     await prisma.auditLog.create({
       data: {
         tenantId: user.tenantId,
         userId: user.id,
         action: "CREATE_STUDENT",
         entity: "Student",
-        entityId: student.id,
-        changes: { created: student } as any,
+        entityId: result.id,
+        changes: { created: result } as any,
       },
     });
 
-    return NextResponse.json({ data: student }, { status: 201 });
+    return NextResponse.json({ data: result }, { status: 201 });
   } catch (e: any) {
     if (e.code === "P2002") {
       return NextResponse.json({ error: "Bu karta ID allaqachon mavjud" }, { status: 409 });

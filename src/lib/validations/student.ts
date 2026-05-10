@@ -14,6 +14,11 @@ export const studentCreateSchema = z.object({
   branchId: z.string().optional().or(z.literal("")),
   status: z.enum(["LEAD", "ACTIVE", "PAUSED", "GRADUATED", "DROPPED"]).default("ACTIVE"),
   notes: z.string().max(1000).optional().or(z.literal("")),
+
+  // Inline parent creation (parentId bo'lmasa)
+  newParentName: z.string().optional().or(z.literal("")),
+  newParentPhone: z.string().optional().or(z.literal("")),
+  newParentTelegram: z.string().optional().or(z.literal("")),
 });
 
 export const studentUpdateSchema = studentCreateSchema.partial();

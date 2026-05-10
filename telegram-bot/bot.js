@@ -1,9 +1,9 @@
-// Coursue Telegram Bot — minimal versiya (production'ga tayyor)
-// DB operatsiyalari asosiy web app orqali, bot esa Telegram + HTTP gateway
+// Edtech System AI — Telegram bot
+// Ota-onalar uchun: farzandni bog'lash + kundalik hisobot
 
 require("dotenv").config({ path: "../.env" });
 const express = require("express");
-const { Telegraf, Markup } = require("telegraf");
+const { Telegraf, Markup, session } = require("telegraf");
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 if (!TOKEN) {
@@ -13,60 +13,153 @@ if (!TOKEN) {
 
 const bot = new Telegraf(TOKEN);
 const WEB_API = process.env.WEB_API_URL || "http://localhost:3000";
+const BOT_SECRET = process.env.BOT_INTERNAL_SECRET || "dev-bot-secret";
 
-// ========== BOT KOMANDALARI ==========
+// Conversation state — chatId → { step, data }
+const states = new Map();
 
+// ========== /start ==========
 bot.start(async (ctx) => {
+  states.delete(String(ctx.from.id));
   return ctx.reply(
     `Edtech System AI platformaga xush kelibsiz! 🎉\n\n` +
-      `Hisobingizni bog'lash uchun web saytda Settings → Telegram bo'limidan 6-xonali kodni oling va shu yerga yuboring.`,
-    Markup.keyboard([["📊 Mening natijalarim", "💳 Balans"], ["📅 Dars jadvali", "ℹ️ Yordam"]]).resize()
+      `Farzandingizni bog'lash uchun pastdagi tugmani bosing.\n` +
+      `Bog'langandan keyin har kuni avtomatik hisobot yuboriladi:\n` +
+      `   • Davomat (kirish/chiqish vaqti)\n` +
+      `   • To'lovlar\n` +
+      `   • Imtihon natijalari\n` +
+      `   • Guruhlari`,
+    Markup.keyboard([
+      ["👶 Farzandni bog'lash", "📊 Bugungi hisobot"],
+      ["💳 To'lov holati", "ℹ️ Yordam"],
+    ]).resize()
   );
 });
 
-// 6-xonali kod orqali bog'lash — web API ga yuboriladi
-bot.hears(/^\d{6}$/, async (ctx) => {
-  const code = ctx.match[0];
-  const chatId = String(ctx.from.id);
+// ========== Farzandni bog'lash sehri ==========
+bot.hears("👶 Farzandni bog'lash", async (ctx) => {
+  states.set(String(ctx.from.id), { step: "ask_id" });
+  return ctx.reply(
+    `Farzandingizning ID raqamini yoki telefon raqamini yuboring.\n\n` +
+      `Masalan: <code>+998901234567</code> yoki <code>cm5x...</code>\n\n` +
+      `ID ni o'quv markazi xodimidan oling.`,
+    { parse_mode: "HTML" }
+  );
+});
 
+// ========== Bugungi hisobot ==========
+bot.hears("📊 Bugungi hisobot", async (ctx) => {
   try {
-    const res = await fetch(`${WEB_API}/api/telegram/link`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, chatId, username: ctx.from.username }),
-    });
-    const data = await res.json();
-    if (data.success) {
-      ctx.reply(`✅ Salom, ${data.userName}! Hisobingiz bog'landi.`);
-    } else {
-      ctx.reply(`❌ ${data.error || "Kod noto'g'ri yoki muddati o'tgan"}`);
+    const res = await fetch(
+      `${WEB_API}/api/bot/daily-report?chatId=${ctx.from.id}`,
+      { headers: { "x-bot-secret": BOT_SECRET } }
+    );
+    if (res.status === 404) {
+      return ctx.reply(
+        `Siz hali bog'lanmagansiz. "👶 Farzandni bog'lash" tugmasini bosing.`
+      );
     }
+    const json = await res.json();
+    return ctx.reply(json.text, { parse_mode: "HTML" });
   } catch (e) {
-    ctx.reply("Server bilan aloqa yo'q. Keyinroq urinib ko'ring.");
+    return ctx.reply("Server bilan aloqa yo'q. Keyinroq urinib ko'ring.");
   }
 });
 
-bot.hears("📊 Mening natijalarim", async (ctx) => {
-  ctx.reply("Iltimos, web saytdan natijalarni ko'ring: " + WEB_API);
-});
-bot.hears("💳 Balans", async (ctx) => {
-  ctx.reply("Iltimos, web saytdan balansingizni tekshiring: " + WEB_API);
-});
-bot.hears("📅 Dars jadvali", async (ctx) => {
-  ctx.reply("Dars jadvalini web saytdan ko'ring: " + WEB_API);
-});
-bot.hears("ℹ️ Yordam", async (ctx) => {
-  ctx.reply(`Edtech System AI — o'quv markazlari uchun AI platforma.\n\nWeb sayt: ${WEB_API}\nQo'llab-quvvatlash: @your_support`);
+// ========== To'lov holati ==========
+bot.hears("💳 To'lov holati", async (ctx) => {
+  // Kelajakda alohida endpoint qilamiz
+  return ctx.reply(`To'lov tarixi tez orada qo'shiladi.`);
 });
 
-// ========== HTTP API ==========
+// ========== Yordam ==========
+bot.hears("ℹ️ Yordam", async (ctx) => {
+  return ctx.reply(
+    `<b>Edtech System AI Bot</b>\n\n` +
+      `Bu bot ota-onalar uchun mo'ljallangan.\n` +
+      `Farzandingizning kundalik faoliyatini avtomatik kuzatasiz.\n\n` +
+      `Buyruqlar:\n` +
+      `/start - Boshlash\n` +
+      `👶 Farzandni bog'lash - ID orqali bog'lash\n` +
+      `📊 Bugungi hisobot - Hozirgi holat\n\n` +
+      `Web sayt: ${WEB_API}\n` +
+      `Yordam: o'quv markazi administratori`,
+    { parse_mode: "HTML" }
+  );
+});
+
+// ========== Universal handler — state bo'yicha ==========
+bot.on("text", async (ctx) => {
+  const chatId = String(ctx.from.id);
+  const state = states.get(chatId);
+  if (!state) return; // Yo'naltirilmagan matn
+
+  const text = ctx.message.text.trim();
+
+  if (state.step === "ask_id") {
+    state.data = { studentIdOrPhone: text };
+    state.step = "ask_parent_name";
+    states.set(chatId, state);
+    return ctx.reply(
+      `Endi sizning F.I.SH ni yuboring (masalan: Aliyev Bekzod):`
+    );
+  }
+
+  if (state.step === "ask_parent_name") {
+    state.data.parentName = text;
+    state.step = "ask_parent_phone";
+    states.set(chatId, state);
+    return ctx.reply(
+      `Telefon raqamingizni yuboring (masalan: +998901234567):`
+    );
+  }
+
+  if (state.step === "ask_parent_phone") {
+    state.data.parentPhone = text;
+    states.delete(chatId);
+
+    // API ga yuborish
+    try {
+      const res = await fetch(`${WEB_API}/api/bot/link-parent`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-bot-secret": BOT_SECRET,
+        },
+        body: JSON.stringify({
+          studentIdOrPhone: state.data.studentIdOrPhone,
+          parentChatId: ctx.from.id,
+          parentName: state.data.parentName,
+          parentPhone: state.data.parentPhone,
+        }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        return ctx.reply(
+          `✅ Muvaffaqiyatli bog'landi!\n\n` +
+            `🏫 Markaz: <b>${json.student.tenantName}</b>\n` +
+            `👨‍🎓 Farzand: <b>${json.student.fullName}</b>\n\n` +
+            `Endi har kuni avtomatik hisobot yuboriladi.\n` +
+            `Hoziroq tekshirish uchun "📊 Bugungi hisobot" ni bosing.`,
+          { parse_mode: "HTML" }
+        );
+      } else {
+        return ctx.reply(`❌ ${json.error || "Xatolik"}`);
+      }
+    } catch (e) {
+      return ctx.reply("Server bilan aloqa yo'q. Keyinroq urinib ko'ring.");
+    }
+  }
+});
+
+// ========== HTTP API (web app uchun) ==========
 const app = express();
 app.use(express.json());
 
 app.get("/", (req, res) => res.send("Edtech System AI Bot — running ✅"));
 app.get("/health", (req, res) => res.json({ status: "ok", uptime: process.uptime() }));
 
-// Web app serverdan xabar yuborish
+// Web app dan kelgan xabarlarni Telegram'ga yuborish
 app.post("/notify", async (req, res) => {
   const { chatId, text, parseMode = "HTML" } = req.body;
   if (!chatId || !text) return res.status(400).json({ error: "chatId va text shart" });
@@ -78,7 +171,7 @@ app.post("/notify", async (req, res) => {
   }
 });
 
-// Broadcast: web app yuboradi qabul qiluvchilar ro'yxatini
+// Broadcast (web app yuboradi)
 app.post("/broadcast", async (req, res) => {
   const { chatIds, text } = req.body;
   if (!Array.isArray(chatIds) || !text) {
@@ -94,6 +187,50 @@ app.post("/broadcast", async (req, res) => {
     }
   }
   res.json({ sent: ok, failed: fail, total: chatIds.length });
+});
+
+// ========== KUNLIK HISOBOT — har kuni 20:00 da ==========
+async function sendDailyReports() {
+  console.log("📤 Kundalik hisobotlar yuborilmoqda...");
+  try {
+    const res = await fetch(`${WEB_API}/api/bot/daily-report`, {
+      method: "POST",
+      headers: { "x-bot-secret": BOT_SECRET },
+    });
+    const json = await res.json();
+    let ok = 0, fail = 0;
+    for (const msg of json.messages || []) {
+      try {
+        await bot.telegram.sendMessage(msg.chatId, msg.text, { parse_mode: "HTML" });
+        ok++;
+      } catch {
+        fail++;
+      }
+    }
+    console.log(`✅ Yuborildi: ${ok}, Muvaffaqiyatsiz: ${fail}`);
+  } catch (e) {
+    console.error("Daily report error:", e.message);
+  }
+}
+
+// Har kuni 20:00 (Toshkent vaqti) — aslida productionda cron job tavsiya
+function scheduleDailyAt(hour, minute, fn) {
+  const check = () => {
+    const now = new Date();
+    if (now.getUTCHours() === (hour - 5 + 24) % 24 && now.getUTCMinutes() === minute) {
+      fn();
+    }
+  };
+  setInterval(check, 60 * 1000); // har daqiqa tekshirish
+}
+scheduleDailyAt(20, 0, sendDailyReports);
+
+// Manual trigger (admin uchun)
+app.post("/send-daily-now", async (req, res) => {
+  const auth = req.headers["x-bot-secret"];
+  if (auth !== BOT_SECRET) return res.status(403).json({ error: "Forbidden" });
+  await sendDailyReports();
+  res.json({ ok: true });
 });
 
 // ========== ISHGA TUSHIRISH ==========

@@ -132,6 +132,9 @@ model Student {
   userId      String?  @unique
   user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
+  // 6-xonali unikal raqam — ota-ona Telegram bog'lashda ishlatadi
+  studentNumber String? @unique
+
   fullName    String
   phone       String?
   birthDate   DateTime?

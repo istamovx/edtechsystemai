@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireTenant, canManageUsers } from "@/lib/session";
 import { studentCreateSchema } from "@/lib/validations/student";
+import { generateStudentNumber } from "@/lib/student-number";
 
 export async function GET(req: Request) {
   const user = await requireTenant();
@@ -69,9 +70,11 @@ export async function POST(req: Request) {
         parentId = newParent.id;
       }
 
+      const studentNumber = await generateStudentNumber();
       const student = await tx.student.create({
         data: {
           tenantId: user.tenantId,
+          studentNumber,
           fullName: d.fullName,
           phone: d.phone || undefined,
           birthDate: d.birthDate ? new Date(d.birthDate) : undefined,

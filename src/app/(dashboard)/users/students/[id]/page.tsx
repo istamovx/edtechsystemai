@@ -72,7 +72,17 @@ export default async function StudentProfilePage({ params }: { params: { id: str
               <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${status?.cls}`}>
                 {status?.label}
               </span>
+              {student.studentNumber && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-100 px-3 py-1 font-mono text-sm font-bold text-brand-700">
+                  #{student.studentNumber}
+                </span>
+              )}
             </div>
+            {student.studentNumber && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                💡 Ota-ona Telegram bog'lash uchun bu raqamni botga yubordi: <code className="bg-muted px-1.5 py-0.5 rounded">#{student.studentNumber}</code>
+              </p>
+            )}
             {student.targetUniversity && (
               <div className="mt-1 text-sm text-muted-foreground">
                 🎓 {student.targetUniversity} {student.targetFaculty && `· ${student.targetFaculty}`}

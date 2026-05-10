@@ -125,10 +125,10 @@ export function StudentsTable({ initialStudents, total }: Props) {
             <table className="w-full text-sm">
               <thead className="text-left text-xs uppercase text-muted-foreground bg-muted/40">
                 <tr>
-                  <th className="px-4 py-3 font-medium rounded-tl-2xl">F.I.SH</th>
+                  <th className="px-4 py-3 font-medium rounded-tl-2xl">ID</th>
+                  <th className="px-4 py-3 font-medium">F.I.SH</th>
                   <th className="px-4 py-3 font-medium">Telefon</th>
                   <th className="px-4 py-3 font-medium">Universitet</th>
-                  <th className="px-4 py-3 font-medium">Karta ID</th>
                   <th className="px-4 py-3 font-medium">Holat</th>
                   <th className="px-4 py-3 font-medium text-center">To'lov</th>
                   <th className="px-4 py-3 font-medium text-center">Davomat</th>
@@ -141,6 +141,15 @@ export function StudentsTable({ initialStudents, total }: Props) {
                   return (
                     <tr key={s.id} className="hover:bg-muted/30">
                       <td className="px-4 py-3">
+                        {s.studentNumber ? (
+                          <code className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-bold text-brand-700">
+                            #{s.studentNumber}
+                          </code>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <Avatar name={s.fullName} size={32} />
                           <div>
@@ -151,9 +160,6 @@ export function StudentsTable({ initialStudents, total }: Props) {
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{formatPhone(s.phone)}</td>
                       <td className="px-4 py-3 text-muted-foreground">{s.targetUniversity || "—"}</td>
-                      <td className="px-4 py-3">
-                        {s.cardId ? <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{s.cardId}</code> : <span className="text-muted-foreground">—</span>}
-                      </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${status?.cls ?? "bg-muted"}`}>
                           {status?.label ?? s.status}

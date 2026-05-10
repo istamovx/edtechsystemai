@@ -76,7 +76,7 @@ async function main() {
       subscriptionPlan: "PRO",
       enabledModules: [
         "dashboard", "users", "payments", "exams", "reports",
-        "schedule", "homework", "crm", "settings",
+        "schedule", "homework", "crm", "branches", "settings",
       ],
     },
   });
@@ -185,12 +185,23 @@ async function main() {
 
   // 9) O'quvchilar
   console.log("👨‍🎓 O'quvchilar...");
+  let studentCounter = 100000;
   for (const s of FAKE_STUDENTS) {
     const existing = await prisma.student.findFirst({ where: { tenantId: tenant.id, fullName: s.fullName } });
-    if (existing) continue;
+    if (existing) {
+      // Mavjud o'quvchilarga ham ID qo'shish (agar yo'q bo'lsa)
+      if (!existing.studentNumber) {
+        await prisma.student.update({
+          where: { id: existing.id },
+          data: { studentNumber: String(++studentCounter) },
+        });
+      }
+      continue;
+    }
     await prisma.student.create({
       data: {
         tenantId: tenant.id,
+        studentNumber: String(++studentCounter),
         fullName: s.fullName,
         phone: s.phone,
         targetUniversity: s.university,
@@ -199,6 +210,22 @@ async function main() {
         status: "ACTIVE",
       },
     });
+  }
+
+  // Mavjud o'quvchilarga ID berish (migratsiyadan keyin)
+  const studentsWithoutNumber = await prisma.student.findMany({
+    where: { tenantId: tenant.id, studentNumber: null },
+  });
+  for (const s of studentsWithoutNumber) {
+    let num = String(300000 + Math.floor(Math.random() * 700000));
+    let tries = 0;
+    while (tries < 10) {
+      const exists = await prisma.student.findUnique({ where: { studentNumber: num } });
+      if (!exists) break;
+      num = String(300000 + Math.floor(Math.random() * 700000));
+      tries++;
+    }
+    await prisma.student.update({ where: { id: s.id }, data: { studentNumber: num } });
   }
 
   // 10) Savollar bazasi

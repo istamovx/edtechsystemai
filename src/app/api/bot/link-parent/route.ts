@@ -1,5 +1,5 @@
-// Bot uchun ichki API: ota-ona o'z farzandi student ID si orqali bog'lanadi
-// Bot Telegram'da: /farzand <ID> yuboradi → bu endpoint chaqiriladi
+// Bot uchun: ota-ona faqat 6-xonali studentNumber yuboradi
+// Telegram chatId student'ning mavjud parent'iga biriktiriladi
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -7,64 +7,44 @@ import { prisma } from "@/lib/prisma";
 const BOT_SECRET = process.env.BOT_INTERNAL_SECRET || "dev-bot-secret";
 
 export async function POST(req: Request) {
-  // Bot ↔ Web orasidagi ichki autentifikatsiya
   const auth = req.headers.get("x-bot-secret");
-  if (auth !== BOT_SECRET) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (auth !== BOT_SECRET) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const { studentNumber, parentChatId } = await req.json();
+  if (!studentNumber || !parentChatId) {
+    return NextResponse.json({ error: "studentNumber va parentChatId shart" }, { status: 400 });
   }
 
-  const { studentIdOrPhone, parentChatId, parentName, parentPhone } = await req.json();
-  if (!studentIdOrPhone || !parentChatId) {
-    return NextResponse.json({ error: "studentIdOrPhone va parentChatId shart" }, { status: 400 });
-  }
+  // Faqat raqamni qabul qilish (# bo'lsa olib tashlash)
+  const cleanNumber = String(studentNumber).replace(/[^\d]/g, "");
 
-  // Studentni topish — ID yoki telefon orqali
-  let student = await prisma.student.findFirst({
-    where: {
-      OR: [
-        { id: studentIdOrPhone },
-        { phone: studentIdOrPhone },
-        { cardId: studentIdOrPhone },
-      ],
+  const student = await prisma.student.findFirst({
+    where: { studentNumber: cleanNumber },
+    include: {
+      parent: true,
+      tenant: { select: { name: true } },
     },
-    include: { parent: true, tenant: { select: { name: true } } },
   });
 
   if (!student) {
     return NextResponse.json({
       ok: false,
-      error: "O'quvchi topilmadi. ID, telefon yoki karta raqamini tekshiring.",
+      error: `${cleanNumber} ID raqamli o'quvchi topilmadi. ID ni o'quv markazidan oling.`,
     });
   }
 
-  // Agar ota-ona allaqachon bor bo'lsa — Telegram ID ni yangilaymiz
-  if (student.parent) {
-    await prisma.parent.update({
-      where: { id: student.parent.id },
-      data: { telegramId: String(parentChatId) },
-    });
-  } else {
-    // Yangi ota-ona yaratish va biriktirish
-    if (!parentName || !parentPhone) {
-      return NextResponse.json({
-        ok: false,
-        needsInfo: true,
-        error: "Ota-ona F.I.SH va telefon kerak",
-      });
-    }
-    const parent = await prisma.parent.create({
-      data: {
-        tenantId: student.tenantId,
-        fullName: parentName,
-        phone: parentPhone,
-        telegramId: String(parentChatId),
-      },
-    });
-    await prisma.student.update({
-      where: { id: student.id },
-      data: { parentId: parent.id },
+  if (!student.parent) {
+    return NextResponse.json({
+      ok: false,
+      error: `Bu o'quvchiga ota-ona biriktirilmagan. O'quv markazi xodimiga murojaat qiling.`,
     });
   }
+
+  // Telegram ID ni mavjud ota-ona yozuviga biriktirish
+  await prisma.parent.update({
+    where: { id: student.parent.id },
+    data: { telegramId: String(parentChatId) },
+  });
 
   return NextResponse.json({
     ok: true,
@@ -72,6 +52,7 @@ export async function POST(req: Request) {
       id: student.id,
       fullName: student.fullName,
       tenantName: student.tenant.name,
+      parentName: student.parent.fullName,
     },
   });
 }

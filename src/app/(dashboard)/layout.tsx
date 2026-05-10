@@ -6,7 +6,10 @@ import { prisma } from "@/lib/prisma";
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
 
-  let enabledModules: string[] = ["dashboard", "users", "payments", "exams", "reports", "settings"];
+  let enabledModules: string[] = [
+    "dashboard", "users", "payments", "exams", "reports",
+    "schedule", "homework", "crm", "branches", "settings",
+  ];
   let tenant: { name: string; id: string; ownerName?: string | null } | null = null;
 
   if (user.tenantId) {

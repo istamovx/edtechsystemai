@@ -11,6 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/DropdownMenu";
+import { RoleSwitcher } from "./RoleSwitcher";
 
 interface HeaderProps {
   user: { name: string; role: string; avatar?: string | null };
@@ -41,6 +42,7 @@ export function Header({ user, tenant }: HeaderProps) {
 
       {/* O'ng: action tugmalar va user */}
       <div className="ml-auto flex items-center gap-2">
+        <RoleSwitcher currentRole={user.role} />
         <button className="grid h-10 w-10 place-items-center rounded-full bg-muted hover:bg-muted/80 transition">
           <Mail size={16} />
         </button>

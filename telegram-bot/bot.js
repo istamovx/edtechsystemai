@@ -1,9 +1,9 @@
 // Edtech System AI — Telegram bot
-// Ota-onalar uchun: farzandni bog'lash + kundalik hisobot
+// Ota-onalar uchun: davomat, to'lov, imtihon, ogohlantirishlar
 
 require("dotenv").config({ path: "../.env" });
 const express = require("express");
-const { Telegraf, Markup, session } = require("telegraf");
+const { Telegraf, Markup } = require("telegraf");
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 if (!TOKEN) {
@@ -15,7 +15,6 @@ const bot = new Telegraf(TOKEN);
 const WEB_API = process.env.WEB_API_URL || "http://localhost:3000";
 const BOT_SECRET = process.env.BOT_INTERNAL_SECRET || "dev-bot-secret";
 
-// Conversation state — chatId → { step, data }
 const states = new Map();
 
 // ========== /start ==========
@@ -24,25 +23,27 @@ bot.start(async (ctx) => {
   return ctx.reply(
     `Edtech System AI platformaga xush kelibsiz! 🎉\n\n` +
       `Farzandingizni bog'lash uchun pastdagi tugmani bosing.\n` +
-      `Bog'langandan keyin har kuni avtomatik hisobot yuboriladi:\n` +
-      `   • Davomat (kirish/chiqish vaqti)\n` +
-      `   • To'lovlar\n` +
-      `   • Imtihon natijalari\n` +
-      `   • Guruhlari`,
+      `Bog'langandan keyin avtomatik xabarlar olasiz:\n` +
+      `   • Davomat (kelmagan / kech kelgan)\n` +
+      `   • Qarzdorlik haqida eslatma\n` +
+      `   • Kundalik hisobot (har kuni 20:00)\n` +
+      `   • Imtihon natijalari`,
     Markup.keyboard([
       ["👶 Farzandni bog'lash", "📊 Bugungi hisobot"],
-      ["💳 To'lov holati", "ℹ️ Yordam"],
+      ["💳 To'lov holati", "📝 Imtihon natijalari"],
+      ["ℹ️ Yordam"],
     ]).resize()
   );
 });
 
-// ========== Farzandni bog'lash sehri ==========
+// ========== Farzandni bog'lash — sodda ==========
 bot.hears("👶 Farzandni bog'lash", async (ctx) => {
-  states.set(String(ctx.from.id), { step: "ask_id" });
+  states.set(String(ctx.from.id), { step: "ask_student_number" });
   return ctx.reply(
-    `Farzandingizning ID raqamini yoki telefon raqamini yuboring.\n\n` +
-      `Masalan: <code>+998901234567</code> yoki <code>cm5x...</code>\n\n` +
-      `ID ni o'quv markazi xodimidan oling.`,
+    `Farzandingizning <b>6-xonali ID raqamini</b> yuboring.\n\n` +
+      `Masalan: <code>#334567</code> yoki <code>334567</code>\n\n` +
+      `📌 ID raqamni o'quv markazi xodimidan oling yoki o'quvchi profilidan ko'ring.\n\n` +
+      `<i>Qo'shimcha ma'lumot kiritish kerak emas — barchasi avtomatik bog'lanadi.</i>`,
     { parse_mode: "HTML" }
   );
 });
@@ -55,111 +56,111 @@ bot.hears("📊 Bugungi hisobot", async (ctx) => {
       { headers: { "x-bot-secret": BOT_SECRET } }
     );
     if (res.status === 404) {
-      return ctx.reply(
-        `Siz hali bog'lanmagansiz. "👶 Farzandni bog'lash" tugmasini bosing.`
-      );
+      return ctx.reply(`Siz bog'lanmagansiz. "👶 Farzandni bog'lash" ni bosing.`);
     }
     const json = await res.json();
     return ctx.reply(json.text, { parse_mode: "HTML" });
-  } catch (e) {
-    return ctx.reply("Server bilan aloqa yo'q. Keyinroq urinib ko'ring.");
+  } catch {
+    return ctx.reply("Server bilan aloqa yo'q.");
   }
 });
 
 // ========== To'lov holati ==========
 bot.hears("💳 To'lov holati", async (ctx) => {
-  // Kelajakda alohida endpoint qilamiz
-  return ctx.reply(`To'lov tarixi tez orada qo'shiladi.`);
+  try {
+    const res = await fetch(
+      `${WEB_API}/api/bot/payment-status?chatId=${ctx.from.id}`,
+      { headers: { "x-bot-secret": BOT_SECRET } }
+    );
+    if (res.status === 404) {
+      return ctx.reply(`Siz bog'lanmagansiz.`);
+    }
+    const json = await res.json();
+    return ctx.reply(json.text, { parse_mode: "HTML" });
+  } catch {
+    return ctx.reply("Server bilan aloqa yo'q.");
+  }
+});
+
+// ========== Imtihon natijalari ==========
+bot.hears("📝 Imtihon natijalari", async (ctx) => {
+  return ctx.reply(`Imtihon natijalari yaqinda qo'shiladi. Hozircha "📊 Bugungi hisobot" ni ko'ring.`);
 });
 
 // ========== Yordam ==========
 bot.hears("ℹ️ Yordam", async (ctx) => {
   return ctx.reply(
     `<b>Edtech System AI Bot</b>\n\n` +
-      `Bu bot ota-onalar uchun mo'ljallangan.\n` +
-      `Farzandingizning kundalik faoliyatini avtomatik kuzatasiz.\n\n` +
-      `Buyruqlar:\n` +
-      `/start - Boshlash\n` +
-      `👶 Farzandni bog'lash - ID orqali bog'lash\n` +
-      `📊 Bugungi hisobot - Hozirgi holat\n\n` +
-      `Web sayt: ${WEB_API}\n` +
-      `Yordam: o'quv markazi administratori`,
+      `Bu bot ota-onalar uchun.\n\n` +
+      `Tugmalar:\n` +
+      `👶 Farzandni bog'lash — ID/telefon orqali bog'lash\n` +
+      `📊 Bugungi hisobot — bugungi davomat, baholar\n` +
+      `💳 To'lov holati — to'langan summa, qarzdorlik\n\n` +
+      `Avtomatik xabarlar:\n` +
+      `• Farzand kelmasa darhol xabar\n` +
+      `• Kech kelsa xabar\n` +
+      `• Qarzdorlik bo'lsa kunlik eslatma (10:00)\n` +
+      `• Kundalik hisobot (20:00)\n\n` +
+      `Web sayt: ${WEB_API}`,
     { parse_mode: "HTML" }
   );
 });
 
-// ========== Universal handler — state bo'yicha ==========
+// ========== Bog'lash — bitta qadam ==========
 bot.on("text", async (ctx) => {
   const chatId = String(ctx.from.id);
   const state = states.get(chatId);
-  if (!state) return; // Yo'naltirilmagan matn
 
+  // # yoki shunchaki 6-xonali raqam yuborilsa — avtomatik bog'lash
   const text = ctx.message.text.trim();
+  const numberMatch = text.match(/^#?(\d{6})$/);
 
-  if (state.step === "ask_id") {
-    state.data = { studentIdOrPhone: text };
-    state.step = "ask_parent_name";
-    states.set(chatId, state);
-    return ctx.reply(
-      `Endi sizning F.I.SH ni yuboring (masalan: Aliyev Bekzod):`
-    );
-  }
-
-  if (state.step === "ask_parent_name") {
-    state.data.parentName = text;
-    state.step = "ask_parent_phone";
-    states.set(chatId, state);
-    return ctx.reply(
-      `Telefon raqamingizni yuboring (masalan: +998901234567):`
-    );
-  }
-
-  if (state.step === "ask_parent_phone") {
-    state.data.parentPhone = text;
+  if (state?.step === "ask_student_number" || numberMatch) {
+    if (!numberMatch) {
+      return ctx.reply(`❌ Format noto'g'ri. 6-xonali raqam yuboring (masalan: <code>#334567</code>).`, {
+        parse_mode: "HTML",
+      });
+    }
     states.delete(chatId);
 
-    // API ga yuborish
     try {
       const res = await fetch(`${WEB_API}/api/bot/link-parent`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-bot-secret": BOT_SECRET,
-        },
+        headers: { "Content-Type": "application/json", "x-bot-secret": BOT_SECRET },
         body: JSON.stringify({
-          studentIdOrPhone: state.data.studentIdOrPhone,
+          studentNumber: numberMatch[1],
           parentChatId: ctx.from.id,
-          parentName: state.data.parentName,
-          parentPhone: state.data.parentPhone,
         }),
       });
       const json = await res.json();
       if (json.ok) {
         return ctx.reply(
-          `✅ Muvaffaqiyatli bog'landi!\n\n` +
+          `✅ <b>Muvaffaqiyatli bog'landi!</b>\n\n` +
             `🏫 Markaz: <b>${json.student.tenantName}</b>\n` +
-            `👨‍🎓 Farzand: <b>${json.student.fullName}</b>\n\n` +
-            `Endi har kuni avtomatik hisobot yuboriladi.\n` +
-            `Hoziroq tekshirish uchun "📊 Bugungi hisobot" ni bosing.`,
+            `👨‍🎓 Farzand: <b>${json.student.fullName}</b>\n` +
+            `👤 Ota-ona: <b>${json.student.parentName}</b>\n\n` +
+            `Endi avtomatik xabarlar olasiz:\n` +
+            `• Davomat (kelmagan/kech)\n` +
+            `• Qarzdorlik eslatmasi\n` +
+            `• Kundalik hisobot 20:00 da\n\n` +
+            `Hozir tekshirish uchun "📊 Bugungi hisobot" ni bosing.`,
           { parse_mode: "HTML" }
         );
-      } else {
-        return ctx.reply(`❌ ${json.error || "Xatolik"}`);
       }
-    } catch (e) {
-      return ctx.reply("Server bilan aloqa yo'q. Keyinroq urinib ko'ring.");
+      return ctx.reply(`❌ ${json.error || "Xatolik"}`);
+    } catch {
+      return ctx.reply("Server bilan aloqa yo'q.");
     }
   }
 });
 
-// ========== HTTP API (web app uchun) ==========
+// ========== HTTP API ==========
 const app = express();
 app.use(express.json());
 
 app.get("/", (req, res) => res.send("Edtech System AI Bot — running ✅"));
 app.get("/health", (req, res) => res.json({ status: "ok", uptime: process.uptime() }));
 
-// Web app dan kelgan xabarlarni Telegram'ga yuborish
 app.post("/notify", async (req, res) => {
   const { chatId, text, parseMode = "HTML" } = req.body;
   if (!chatId || !text) return res.status(400).json({ error: "chatId va text shart" });
@@ -171,27 +172,22 @@ app.post("/notify", async (req, res) => {
   }
 });
 
-// Broadcast (web app yuboradi)
 app.post("/broadcast", async (req, res) => {
   const { chatIds, text } = req.body;
-  if (!Array.isArray(chatIds) || !text) {
-    return res.status(400).json({ error: "chatIds (array) va text shart" });
-  }
+  if (!Array.isArray(chatIds) || !text) return res.status(400).json({ error: "Noto'g'ri" });
   let ok = 0, fail = 0;
   for (const id of chatIds) {
     try {
       await bot.telegram.sendMessage(id, text, { parse_mode: "HTML" });
       ok++;
-    } catch {
-      fail++;
-    }
+    } catch { fail++; }
   }
   res.json({ sent: ok, failed: fail, total: chatIds.length });
 });
 
-// ========== KUNLIK HISOBOT — har kuni 20:00 da ==========
+// ========== KUNLIK XABARLAR ==========
 async function sendDailyReports() {
-  console.log("📤 Kundalik hisobotlar yuborilmoqda...");
+  console.log("📤 Kundalik hisobotlar...");
   try {
     const res = await fetch(`${WEB_API}/api/bot/daily-report`, {
       method: "POST",
@@ -203,37 +199,64 @@ async function sendDailyReports() {
       try {
         await bot.telegram.sendMessage(msg.chatId, msg.text, { parse_mode: "HTML" });
         ok++;
-      } catch {
-        fail++;
-      }
+      } catch { fail++; }
     }
-    console.log(`✅ Yuborildi: ${ok}, Muvaffaqiyatsiz: ${fail}`);
+    console.log(`✅ Hisobot: ${ok} yuborildi, ${fail} xato`);
   } catch (e) {
-    console.error("Daily report error:", e.message);
+    console.error("Daily report xatosi:", e.message);
   }
 }
 
-// Har kuni 20:00 (Toshkent vaqti) — aslida productionda cron job tavsiya
+async function sendDebtReminders() {
+  console.log("💰 Qarzdorlik eslatmalar...");
+  try {
+    const res = await fetch(`${WEB_API}/api/bot/debt-reminders`, {
+      method: "POST",
+      headers: { "x-bot-secret": BOT_SECRET },
+    });
+    const json = await res.json();
+    let ok = 0, fail = 0;
+    for (const msg of json.messages || []) {
+      try {
+        await bot.telegram.sendMessage(msg.chatId, msg.text, { parse_mode: "HTML" });
+        ok++;
+      } catch { fail++; }
+    }
+    console.log(`✅ Qarzdorlik: ${ok} yuborildi, ${fail} xato`);
+  } catch (e) {
+    console.error("Debt reminders xatosi:", e.message);
+  }
+}
+
+// Cron: har daqiqada vaqtni tekshirib, kerakli vaqtda yuborish
 function scheduleDailyAt(hour, minute, fn) {
   const check = () => {
     const now = new Date();
-    if (now.getUTCHours() === (hour - 5 + 24) % 24 && now.getUTCMinutes() === minute) {
+    // Toshkent vaqti = UTC+5
+    const utcHour = (hour - 5 + 24) % 24;
+    if (now.getUTCHours() === utcHour && now.getUTCMinutes() === minute) {
       fn();
     }
   };
-  setInterval(check, 60 * 1000); // har daqiqa tekshirish
+  setInterval(check, 60 * 1000);
 }
-scheduleDailyAt(20, 0, sendDailyReports);
 
-// Manual trigger (admin uchun)
+scheduleDailyAt(20, 0, sendDailyReports);  // 20:00 — kundalik hisobot
+scheduleDailyAt(10, 0, sendDebtReminders); // 10:00 — qarzdorlik eslatma
+
+// Manual triggers
 app.post("/send-daily-now", async (req, res) => {
-  const auth = req.headers["x-bot-secret"];
-  if (auth !== BOT_SECRET) return res.status(403).json({ error: "Forbidden" });
+  if (req.headers["x-bot-secret"] !== BOT_SECRET) return res.status(403).json({ error: "Forbidden" });
   await sendDailyReports();
   res.json({ ok: true });
 });
 
-// ========== ISHGA TUSHIRISH ==========
+app.post("/send-debt-reminders-now", async (req, res) => {
+  if (req.headers["x-bot-secret"] !== BOT_SECRET) return res.status(403).json({ error: "Forbidden" });
+  await sendDebtReminders();
+  res.json({ ok: true });
+});
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`✅ Bot HTTP API: port ${PORT}`));
 

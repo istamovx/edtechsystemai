@@ -180,7 +180,10 @@ enum StudentStatus {
   DROPPED       // Tashlab ketgan
 }
 
-enum Gender { MALE FEMALE }
+enum Gender {
+  MALE
+  FEMALE
+}
 
 // ============================================================
 // O'QITUVCHILAR / MENTORLAR
@@ -220,8 +223,16 @@ model Teacher {
   @@index([tenantId, status])
 }
 
-enum TeacherStatus { ACTIVE INACTIVE FIRED }
-enum SalaryType { HOURLY MONTHLY PERCENT }
+enum TeacherStatus {
+  ACTIVE
+  INACTIVE
+  FIRED
+}
+enum SalaryType {
+  HOURLY
+  MONTHLY
+  PERCENT
+}
 
 // ============================================================
 // OTA-ONALAR
@@ -309,7 +320,11 @@ model Group {
   @@index([tenantId, status])
 }
 
-enum GroupStatus { ACTIVE COMPLETED CANCELLED }
+enum GroupStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
 
 model GroupMember {
   id        String   @id @default(cuid())
@@ -371,8 +386,18 @@ model Attendance {
   @@index([tenantId, studentId, createdAt])
 }
 
-enum AttendanceStatus { PRESENT ABSENT LATE EXCUSED }
-enum AttendanceSource { MANUAL TURNSTILE TELEGRAM QR_CODE }
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+enum AttendanceSource {
+  MANUAL
+  TURNSTILE
+  TELEGRAM
+  QR_CODE
+}
 
 // Turniket xom hodisalar (audit + qayta ishlash uchun)
 model TurnstileEvent {
@@ -391,7 +416,10 @@ model TurnstileEvent {
   @@index([tenantId, occurredAt])
 }
 
-enum TurnstileDirection { IN OUT }
+enum TurnstileDirection {
+  IN
+  OUT
+}
 
 // ============================================================
 // TO'LOVLAR
@@ -421,8 +449,20 @@ model Payment {
   @@index([status])
 }
 
-enum PaymentMethod { CASH CARD CLICK PAYME BANK_TRANSFER OTHER }
-enum PaymentStatus { PENDING PAID FAILED REFUNDED }
+enum PaymentMethod {
+  CASH
+  CARD
+  CLICK
+  PAYME
+  BANK_TRANSFER
+  OTHER
+}
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
 
 // ============================================================
 // IMTIHON MODULI
@@ -549,7 +589,11 @@ model ExamAttempt {
   @@index([tenantId, studentId])
 }
 
-enum AttemptStatus { IN_PROGRESS SUBMITTED GRADED }
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  GRADED
+}
 
 // ============================================================
 // UY VAZIFALARI
@@ -603,7 +647,13 @@ model Lead {
   @@index([tenantId, status])
 }
 
-enum LeadStatus { NEW CONTACTED INTERESTED ENROLLED LOST }
+enum LeadStatus {
+  NEW
+  CONTACTED
+  INTERESTED
+  ENROLLED
+  LOST
+}
 
 // ============================================================
 // SERTIFIKATLAR
@@ -640,8 +690,21 @@ model Notification {
   @@index([tenantId, userId])
 }
 
-enum NotificationType { INFO WARNING SUCCESS ERROR PAYMENT_REMINDER ATTENDANCE EXAM_RESULT }
-enum NotificationChannel { IN_APP TELEGRAM SMS EMAIL }
+enum NotificationType {
+  INFO
+  WARNING
+  SUCCESS
+  ERROR
+  PAYMENT_REMINDER
+  ATTENDANCE
+  EXAM_RESULT
+}
+enum NotificationChannel {
+  IN_APP
+  TELEGRAM
+  SMS
+  EMAIL
+}
 
 // ============================================================
 // AUDIT LOG (kim nima o'zgartirgani)

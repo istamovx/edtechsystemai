@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { UserPlus, Users } from "lucide-react";
@@ -9,6 +9,7 @@ import { studentCreateSchema, type StudentCreateInput } from "@/lib/validations/
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/Dialog";
 import { Input, Select, Textarea, Label, FieldError } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { useToast } from "@/components/ui/Toast";
 
 interface Props {
@@ -27,7 +28,7 @@ export function StudentFormDialog({ open, onOpenChange, student }: Props) {
   const [parents, setParents] = useState<any[]>([]);
   const [parentMode, setParentMode] = useState<ParentMode>("none");
 
-  const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<StudentCreateInput>({
+  const { register, handleSubmit, control, formState: { errors }, reset, setValue, watch } = useForm<StudentCreateInput>({
     resolver: zodResolver(studentCreateSchema),
     defaultValues: {
       fullName: "", phone: "", birthDate: "", gender: undefined,
@@ -230,14 +231,26 @@ export function StudentFormDialog({ open, onOpenChange, student }: Props) {
             {parentMode === "existing" && (
               <div>
                 <Label>Mavjud ota-ona</Label>
-                <Select {...register("parentId")}>
-                  <option value="">— Tanlang —</option>
-                  {parents.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.fullName} — {p.phone}
-                    </option>
-                  ))}
-                </Select>
+                <Controller
+                  name="parentId"
+                  control={control}
+                  render={({ field }) => (
+                    <SearchableSelect
+                      options={parents.map((p) => ({
+                        value: p.id,
+                        label: p.fullName,
+                        description: p.phone,
+                        search: `${p.fullName} ${p.phone}`,
+                      }))}
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      placeholder="— Tanlang —"
+                      searchPlaceholder="Ota-ona F.I.SH yoki telefon..."
+                      emptyText="Topilmadi"
+                      clearable
+                    />
+                  )}
+                />
                 {parents.length === 0 && (
                   <p className="mt-1 text-xs text-muted-foreground">
                     Hali ota-onalar yo'q. "Yangi qo'shish" tugmasini bosing.

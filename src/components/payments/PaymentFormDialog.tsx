@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { paymentCreateSchema, type PaymentCreateInput, METHOD_LABELS } from "@/lib/validations/payment";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/Dialog";
 import { Input, Select, Textarea, Label, FieldError } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { useToast } from "@/components/ui/Toast";
 
 interface Props {
@@ -24,7 +25,7 @@ export function PaymentFormDialog({ open, onOpenChange, payment, preselectedStud
   const [loading, setLoading] = useState(false);
   const [students, setStudents] = useState<any[]>([]);
 
-  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<PaymentCreateInput>({
+  const { register, handleSubmit, control, formState: { errors }, reset } = useForm<PaymentCreateInput>({
     resolver: zodResolver(paymentCreateSchema),
     defaultValues: {
       studentId: preselectedStudentId ?? "",
@@ -94,6 +95,14 @@ export function PaymentFormDialog({ open, onOpenChange, payment, preselectedStud
     }
   };
 
+  // SearchableSelect uchun options
+  const studentOptions = students.map((s) => ({
+    value: s.id,
+    label: s.fullName,
+    description: s.phone ? `${s.phone}${s.targetUniversity ? ` · ${s.targetUniversity}` : ""}` : s.targetUniversity ?? "",
+    search: `${s.fullName} ${s.phone ?? ""} ${s.cardId ?? ""}`,
+  }));
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -104,14 +113,22 @@ export function PaymentFormDialog({ open, onOpenChange, payment, preselectedStud
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
             <Label>O'quvchi *</Label>
-            <Select {...register("studentId")} disabled={isEdit}>
-              <option value="">— Tanlang —</option>
-              {students.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.fullName} {s.phone ? `(${s.phone})` : ""}
-                </option>
-              ))}
-            </Select>
+            <Controller
+              name="studentId"
+              control={control}
+              render={({ field }) => (
+                <SearchableSelect
+                  options={studentOptions}
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="— Tanlang —"
+                  searchPlaceholder="F.I.SH, telefon yoki karta..."
+                  emptyText="O'quvchi topilmadi"
+                  disabled={isEdit}
+                  error={!!errors.studentId}
+                />
+              )}
+            />
             <FieldError message={errors.studentId?.message} />
           </div>
 

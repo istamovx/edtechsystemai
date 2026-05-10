@@ -1,16 +1,9 @@
-import Link from "next/link";
-import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireTenant } from "@/lib/session";
 import { StudentsTable } from "@/components/students/StudentsTable";
+import { UsersTabs } from "@/components/users/UsersTabs";
 
-const TABS = [
-  { key: "students", label: "O'quvchilar", href: "/users" },
-  { key: "teachers", label: "O'qituvchilar", href: "/users/teachers" },
-  { key: "mentors", label: "Mentorlar", href: "/users/mentors" },
-  { key: "staff", label: "Xodimlar", href: "/users/staff" },
-  { key: "parents", label: "Ota-onalar", href: "/users/parents" },
-];
+export const dynamic = "force-dynamic";
 
 export default async function UsersPage() {
   const user = await requireTenant();
@@ -36,19 +29,7 @@ export default async function UsersPage() {
         <p className="text-sm text-muted-foreground">O'quvchi, o'qituvchi, mentor, xodim va ota-onalar</p>
       </div>
 
-      <div className="flex gap-1 rounded-full bg-muted p-1 w-fit">
-        {TABS.map((t) => (
-          <Link
-            key={t.key}
-            href={t.href}
-            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-              t.key === "students" ? "bg-card shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t.label}
-          </Link>
-        ))}
-      </div>
+      <UsersTabs />
 
       <StudentsTable initialStudents={JSON.parse(JSON.stringify(students))} total={total} />
     </div>

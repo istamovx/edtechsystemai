@@ -4,7 +4,7 @@ chcp 65001 >nul
 
 echo Push qilinmoqda...
 git add .
-git commit -m "fix: dropdown overflow issue - use Radix DropdownMenu with Portal"
+git commit -m "feat: complete Users module - Teachers, Mentors, Staff, Parents tabs with full CRUD"
 git push origin main
 
 if errorlevel 1 (

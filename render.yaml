@@ -1,5 +1,5 @@
 # Render Blueprint — Free plan
-# Build muammolari hal qilingan: rootDir o'rniga buildCommand ichida cd
+# Prisma 5.22.0 pinned (Prisma 7 schema sintaksisi boshqacha)
 
 databases:
   - name: coursue-db
@@ -18,8 +18,9 @@ services:
     region: frankfurt
     branch: main
     autoDeploy: true
-    buildCommand: npm install --legacy-peer-deps && npx prisma generate && npm run build
-    startCommand: npx prisma migrate deploy && npm run start
+    # Lokal prisma binary ishlatamiz (npx 7.x ni torta olmaydi)
+    buildCommand: npm install --legacy-peer-deps && ./node_modules/.bin/prisma generate && npm run build
+    startCommand: ./node_modules/.bin/prisma migrate deploy && npm run start
     healthCheckPath: /
     envVars:
       - key: NODE_VERSION
@@ -42,7 +43,6 @@ services:
         value: https://coursue-bot.onrender.com
       - key: TURNSTILE_WEBHOOK_SECRET
         generateValue: true
-      # Build vaqtida Next.js'ga DATABASE_URL ishonarsiz bo'lsa skip qilish
       - key: NEXT_TELEMETRY_DISABLED
         value: "1"
 

@@ -4,7 +4,7 @@ chcp 65001 >nul
 
 echo Push qilinmoqda...
 git add .
-git commit -m "fix: convert 13 inline enums to multi-line - Prisma 5 parser bug"
+git commit -m "fix: use prisma db push and run seed on startup - no migrations folder"
 git push origin main
 
 if errorlevel 1 (

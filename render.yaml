@@ -20,7 +20,7 @@ services:
     autoDeploy: true
     # Lokal prisma binary ishlatamiz (npx 7.x ni torta olmaydi)
     buildCommand: npm install --legacy-peer-deps --include=dev && ./node_modules/.bin/prisma generate && npm run build
-    startCommand: ./node_modules/.bin/prisma migrate deploy && npm run start
+    startCommand: ./node_modules/.bin/prisma db push --accept-data-loss && ./node_modules/.bin/tsx prisma/seed.ts && npm run start
     healthCheckPath: /
     envVars:
       - key: NODE_VERSION

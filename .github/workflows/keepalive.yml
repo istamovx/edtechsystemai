@@ -1,0 +1,20 @@
+name: Keep Alive
+
+on:
+  schedule:
+    # Har 10 daqiqada
+    - cron: "*/10 * * * *"
+  # Qo'lda ham ishga tushirish mumkin
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping web service
+        run: |
+          curl -s -o /dev/null -w "Web: %{http_code} (vaqt: %{time_total}s)\n" https://coursue-web.onrender.com/api/ping || true
+
+      - name: Ping bot service
+        run: |
+          curl -s -o /dev/null -w "Bot: %{http_code} (vaqt: %{time_total}s)\n" https://coursue-bot.onrender.com/health || true
